@@ -173,8 +173,7 @@ class EnginePsi4(QMEngine):
 
     def write_input(self, filename='input.dat'):
         """ Write output based on self.psi4_temp and self.M, using only geometry of the first frame """
-        if not hasattr(self, 'psi4_temp'):
-            raise RuntimeError("psi4_temp not found, call self.load_input() first")
+        assert hasattr(self, 'psi4_temp'), "psi4_temp not found, call self.load_input() first"
         with open(filename, 'w') as outfile:
             for line in self.psi4_temp:
                 if line == '$!geometry@here':
@@ -309,8 +308,7 @@ class EngineQChem(QMEngine):
 
     def write_input(self, filename='qc.in'):
         """ Write QChem input using Molecule Class """
-        if not hasattr(self, 'qchem_temp'):
-            raise RuntimeError("self.qchem_temp not set, call load_input() first")
+        assert hasattr(self, 'qchem_temp'), "self.qchem_temp not set, call load_input() first"
         with open(filename, 'w') as outfile:
             for line in self.qchem_temp:
                 if line == '$!geometry@here':
@@ -365,4 +363,96 @@ class EngineQChem(QMEngine):
 
 class EngineTerachem(QMEngine):
     def load_input(self, input_file):
-        raise NotImplementedError
+        """
+        Load TeraChem input
+        Example input file:
+
+        coordinates start.xyz
+        run gradient
+        basis 6-31g*
+        method rb3lyp
+        charge 0
+        spinmult 1
+        dispersion yes
+        scf diis+a
+        maxit 50
+        """
+        self.tera_temp = []
+        geo_file = None
+        with open(input_file) as terain:
+            for line in terain:
+                # we don't need to change the temp
+                self.tera_temp.append(line)
+                key, value = line.strip().lower().split(None, 1)
+                if key == 'coordinates':
+                    geo_file = value
+                elif key == 'run':
+                    if value == 'gradient':
+                        self.temp_type = 'gradient'
+                    elif value == 'minimize':
+                        self.temp_type = 'optimize'
+        # place holder for writing native constraints
+        self.tera_temp.append('$!constraints@here')
+        # check input
+        assert geo_file, 'coordinates key not found in input file %s' % input_file
+        if self.native_opt:
+            assert self.temp_type == 'optimize', "input_file should be a opt job to use native opt"
+        else:
+            assert self.temp_type == 'gradient', "input_file should be a gradient job to use geomeTRIC"
+        # load molecule from separate file, one frame only
+        self.M = Molecule(geo_file)[0]
+        # store the name of geo_file
+        self.tera_geo_file = geo_file
+
+    def write_input(self):
+        """ Write TeraChem input files, i.e. run.in and start.xyz """
+        assert hasattr(self, 'tera_temp'), "self.tera_temp not set, call load_input() first"
+        assert hasattr(self, 'tera_geo_file'), "self.tera_temp not set, call load_input() first"
+        with open('run.in', 'w') as terain:
+            for line in self.tera_temp:
+                if line == "$!constraints@here":
+                    if hasattr(self, 'constraintsStr'):
+                        # self.optblockStr will be set by self.optimize_native()
+                        terain.write(self.constraintsStr)
+                else:
+                    terain.write(line)
+        self.M.write(self.tera_geo_file)
+
+    def optimize_native(self):
+        """
+        Run the constrained optimization, following QChem 5.0 manual.
+        1. write a optimization job input file.
+        2. run the job
+        """
+        assert self.temp_type == 'optimize', "To use native optimization, the input file be an opt job"
+        # add the $opt block
+        self.constraintsStr = '\n$constraint_set\n'
+        for d1, d2, d3, d4, v in self.dihedral_idx_values:
+            # Optking use atom index starting from 1
+            self.constraintsStr += 'dihedral %f %d_%d_%d_%d\n' % (v, d1+1, d2+1, d3+1, d4+1)
+        self.constraintsStr += '$end\n'
+        # write input file
+        self.write_input()
+        # run the job
+        self.run('terachem run.in > run.out', input_files=['run.in', self.tera_geo_file], output_files=['run.out', 'scr'])
+
+    def optimize_geomeTRIC(self):
+        """ run the constrained optimization using geomeTRIC package, in 3 steps:
+        1. Write a constraints.txt file.
+        2. Write a gradient job input file.
+        3. Run the job
+        """
+        assert self.temp_type == 'gradient', "To use geomeTRIC package, the input file should have gradient() in it"
+        # step 1
+        self.write_constraints_txt()
+        # step 2
+        self.write_input()
+        # step 3
+        self.run('geometric-optimize run.in constraints.txt > optimize.log', input_files=['run.in', self.tera_geo_file, 'constraints.txt'], output_files=['optimize.log', 'opt.xyz', 'energy.txt'])
+
+    def load_native_output(self):
+        """ Load the optimized geometry and energy into a new molecule object and return """
+        m = Molecule('scr/optim.xyz')[-1]
+        # read the energy from optim.xyz comment line
+        m.qm_energy = float(m.comms[0].split(None, 1)[0])
+        return m
