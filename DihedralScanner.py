@@ -9,6 +9,7 @@
 from __future__ import print_function, division
 import numpy as np
 import os, shutil, time, itertools
+from forcebalance.molecule import Molecule
 from QMEngine import EnginePsi4, EngineQChem, EngineTerachem
 from PriorityQueue import PriorityQueue
 
@@ -269,13 +270,14 @@ class DihedralScanner:
                 return finished_job_path_ids
 
     def finish(self):
-        """ Write qdata.txt and scan.pdb file based on converged scan results """
-        m = self.engine.M
+        """ Write qdata.txt and scan.xyz file based on converged scan results """
+        m = Molecule()
+        m.elem = list(self.engine.M.elem)
         m.qm_energies, m.xyzs, m.comms = [], [], []
         for gid in self.grid_ids:
             m.qm_energies.append(self.grid_energies[gid])
             m.xyzs.append(self.grid_final_geometries[gid])
-            m.comms.append("Dihedral %s" % str(gid))
+            m.comms.append("Dihedral %s Energy %f" % (str(gid), self.grid_energies[gid]))
         m.write('qdata.txt')
         print("Final scan energies are written to qdata.txt")
         m.write('scan.xyz')
