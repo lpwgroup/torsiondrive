@@ -42,8 +42,9 @@ class DihedralScanner:
         self.grid_spacing = grid_spacing
         self.setup_grid()
         self.opt_queue = PriorityQueue()
-        # try to use init_coords_M first, then use M in engine's template second
-        self.init_coords_M = init_coords_M if init_coords_M != None else [self.engine.M]
+        # try to use init_coords_M first, then use M in engine's template second,
+        # `for m in init_coords_M` doesn't work since m.measure_dihedrals will fail because it has different m.xyzs shape)
+        self.init_coords_M = [init_coords_M[i] for i in range(len(init_coords_M))] if init_coords_M != None else [self.engine.M]
         self.verbose = verbose
         # dictionary that stores the lowest energy for each grid point
         self.grid_energies = DefaultMaxDict()
