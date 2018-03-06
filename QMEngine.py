@@ -25,7 +25,8 @@ class QMEngine(object):
         raise NotImplementedError
 
     def set_dihedral_constraints(self, dihedral_idx_values):
-        """ set arbitrary number of dihedrals to be constrained
+        """
+        set arbitrary number of dihedrals to be constrained
         input:
         -------
         dihedral_idx_values: list of (id1, id2, id3, id4, value), where id are atom indices
@@ -37,6 +38,7 @@ class QMEngine(object):
         self.dihedral_idx_values = dihedral_idx_values
 
     def write_constraints_txt(self):
+        """ write a constraints.txt file for geomeTRIC """
         with open('constraints.txt', 'w') as outfile:
             outfile.write("$set\n")
             for d1, d2, d3, d4, v in self.dihedral_idx_values:
@@ -79,7 +81,7 @@ class QMEngine(object):
     def run(self, cmd, input_files=[], output_files=[]):
         """ Execute a command locally or remotely, based on whether self.work_queue is set """
         if self.work_queue == None:
-            returncode = subprocess.check_call(cmd, shell=True)
+            subprocess.check_call(cmd, shell=True)
         else:
             self.work_queue.submit(cmd, input_files, output_files)
 

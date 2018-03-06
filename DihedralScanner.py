@@ -42,8 +42,8 @@ class DihedralScanner:
         self.grid_spacing = grid_spacing
         self.setup_grid()
         self.opt_queue = PriorityQueue()
-        # try to use init_coords_M first, then use M in engine's template second,
-        # `for m in init_coords_M` doesn't work since m.measure_dihedrals will fail because it has different m.xyzs shape)
+        # try to use init_coords_M first, if not given, use M in engine's template
+        # `for m in init_coords_M` doesn't work since m.measure_dihedrals will fail because it has different m.xyzs shape
         self.init_coords_M = [init_coords_M[i] for i in range(len(init_coords_M))] if init_coords_M != None else [self.engine.M]
         self.verbose = verbose
         # dictionary that stores the lowest energy for each grid point
@@ -180,7 +180,7 @@ class DihedralScanner:
     # Utility methods Called by Master
     #----------------------------------
 
-    def push_initial_opt_tasks(self, init_coords_M=None):
+    def push_initial_opt_tasks(self):
         """
         Push a set of initial tasks to self.opt_queue
         """
@@ -210,7 +210,7 @@ class DihedralScanner:
         """
         Launch constrained optimizations for molecules in opt_queue
         The current opt_queue will be cleaned up
-        Return a set that contains the paths for launched jobs
+        Return a dictionary that contains path and grid_ids: { path0: grid_id0, path1: grid_id1 }
         """
         new_job_path_ids = dict()
         while len(self.opt_queue) > 0:
@@ -255,7 +255,7 @@ class DihedralScanner:
         Interface with engine to check if any job finished
         Will wait infinitely here until at least one job finished
         The finished job paths will be removed from self.running_job_path_id
-        Return a set of finished job paths
+        Return a dictionary of {finished job path: grid_id, ..}
         """
         if len(self.running_job_path_id) == 0:
             print("No jobs running, returning")
@@ -347,7 +347,7 @@ def load_dihedralfile(dihedralfile):
 def create_engine(enginename, inputfile=None, work_queue_port=None, native_opt=False):
     """
     Function to create a QM Engine object with work_queue and geomeTRIC setup.
-    This is intentionally left outside of DihedralGrid class, because multiple DihedralGrid could share the same engine
+    This is intentionally left outside of DihedralScanner class, because multiple DihedralScanner could share the same engine
     """
     engine_dict = {'psi4': EnginePsi4, 'qchem': EngineQChem, 'terachem':EngineTerachem}
     # initialize a work_queue
@@ -361,30 +361,34 @@ def create_engine(enginename, inputfile=None, work_queue_port=None, native_opt=F
 
 def main():
     import argparse, sys
-    parser = argparse.ArgumentParser(description="Potential energy scan of dihedral angle from 1 to 360 degree")
-    parser.add_argument('inputfile', type=str, help='Input template file for engine to load. Initial coordinates will be used by default.')
+    parser = argparse.ArgumentParser(description="Potential energy scan of dihedral angle from 1 to 360 degree", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('inputfile', type=str, help='Input template file for QMEngine. Geometry will be used as starting point for scanning.')
     parser.add_argument('dihedralfile', type=str, help='File defining all dihedral angles to be scanned.')
     parser.add_argument('--init_coords', type=str, help='File contain a list of geometries, that will be used as multiple starting points, overwriting the geometry in input file.')
     parser.add_argument('-g', '--grid_spacing', type=int, default=15, help='Grid spacing for dihedral scan, i.e. every 15 degrees')
     parser.add_argument('-e', '--engine', type=str, default="psi4", choices=['qchem', 'psi4', 'terachem'], help='Engine for running scan')
-    parser.add_argument('--native_opt', action='store_true', default=False, help='Use QM programs native OPT algorithm. This will turn off geomeTRIC package.')
+    parser.add_argument('--native_opt', action='store_true', default=False, help='Use QM program native constrained optimization algorithm. This will turn off geomeTRIC package.')
     parser.add_argument('--wq_port', type=int, default=None, help='Specify port number to use Work Queue to distribute optimization jobs.')
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help='Print more information while running.')
     args = parser.parse_args()
 
+    # print input command for reproducibility
     print(' '.join(sys.argv))
+
+    # parse the dihedral file
     dihedral_idxs = load_dihedralfile(args.dihedralfile)
 
-    # initialize QM Engine
+    # create QM Engine, and WorkQueue object if provided port
     engine = create_engine(args.engine, inputfile=args.inputfile, work_queue_port=args.wq_port, native_opt=args.native_opt)
 
-    # use init_coords instead of input geometry from input file
-    init_coords_M = None
-    if args.init_coords:
-        init_coords_M = Molecule(args.init_coords)
+    # load init_coords if provided
+    init_coords_M = Molecule(args.init_coords) if args.init_coords else None
 
+    # create DihedralScanner object
     scanner = DihedralScanner(engine, dihedrals=dihedral_idxs, grid_spacing=args.grid_spacing, init_coords_M=init_coords_M, verbose=args.verbose)
-    scanner.master() # this line run the scan
+    # Run the scan!
+    scanner.master()
+    # After finish, print result
     print("Dihedral scan is finished!")
     print(" Grid ID                Energy")
     for grid_id in sorted(scanner.grid_energies.keys()):

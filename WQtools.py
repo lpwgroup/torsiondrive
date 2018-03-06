@@ -2,7 +2,6 @@ import os
 import work_queue
 
 class WorkQueue:
-
     def __init__(self, port, name='dihedral'):
         #work_queue.set_debug_flag('all')
         wq = work_queue.WorkQueue(port=port, exclusive=False, shutdown=False)
