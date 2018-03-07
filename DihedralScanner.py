@@ -200,7 +200,7 @@ class DihedralScanner:
         os.mkdir(tmp_folder_name)
         tmp_folder_dict = dict()
         for grid_id in self.grid_ids:
-            tname = 'gid_' + '_'.join('%03d' % gid for gid in grid_id)
+            tname = 'gid_' + '_'.join('%+04d' % gid for gid in grid_id)
             tmp_folder_path = os.path.join(tmp_folder_name, tname)
             os.mkdir(tmp_folder_path)
             tmp_folder_dict[grid_id] = tmp_folder_path
