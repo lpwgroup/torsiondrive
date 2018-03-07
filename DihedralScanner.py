@@ -90,6 +90,7 @@ class DihedralScanner:
 
     def grid_full_neighbors(self, grid_id):
         """ Take a center grid id, return all the neighboring grid ids, in all dimensions """
+        # Note: This function is not called by master yet, because it's very expensive (and probably unnecessary)
         gs = self.grid_spacing
         neighbor_gids_each_dim = []
         for gid_each_dim in grid_id:
@@ -142,8 +143,22 @@ class DihedralScanner:
         while True:
             # Launch all jobs in self.opt_queue
             self.running_job_path_id.update(self.launch_opt_jobs())
-            # wait until any job finishes, take out from self.running_job_path_id
-            finished_job_path_ids = self.wait_extract_finished_jobs()
+            # check if it's time to show the status
+            current_time = time.time()
+            if self.verbose and current_time - last_print_time > show_scan_status_interval:
+                print("Scan Status at %d s" % (current_time-start_time))
+                print(self.draw_ascii_image())
+                last_print_time = current_time
+            # wait until all job finishes, take out from self.running_job_path_id
+            finished_job_path_ids = dict()
+            while True:
+                just_finished_job_path_ids = self.wait_extract_finished_jobs()
+                if just_finished_job_path_ids == None:
+                    break
+                else:
+                    finished_job_path_ids.update(just_finished_job_path_ids)
+            # no running jobs should be left at this point
+            assert len(self.running_job_path_id) == 0, 'No running jobs should be left after all jobs finished.'
             # load molecule object from finished jobs
             best_grid_m = dict()
             for job_path, job_grid_id in finished_job_path_ids.items():
@@ -163,12 +178,7 @@ class DihedralScanner:
                     task = m, neighbor_gid
                     # all jobs are pushed with the same priority for now, can be adjusted here
                     self.opt_queue.push(task)
-            # check if it's time to show the status
-            current_time = time.time()
-            if self.verbose and current_time - last_print_time > show_scan_status_interval:
-                print("Scan Status at %d s" % (current_time-start_time))
-                print(self.draw_ascii_image())
-                last_print_time = current_time
+
             # check if all jobs finished
             if len(self.opt_queue) == 0 and len(self.running_job_path_id) == 0:
                 print("All optimizations converged at lowest energy. Job Finished!")
