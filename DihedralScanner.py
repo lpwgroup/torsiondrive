@@ -139,13 +139,14 @@ class DihedralScanner:
         energy_decrease_thresh = 0.00001
         # print scan status interval
         start_time = last_print_time = time.time()
-        show_scan_status_interval = 10
+        # the minimum time interval between prints
+        min_print_interval = -1 # Disabled for now
         while True:
             # Launch all jobs in self.opt_queue
             self.running_job_path_id.update(self.launch_opt_jobs())
             # check if it's time to show the status
             current_time = time.time()
-            if self.verbose and current_time - last_print_time > show_scan_status_interval:
+            if self.verbose and current_time - last_print_time > min_print_interval:
                 print("Scan Status at %d s" % (current_time-start_time))
                 print(self.draw_ascii_image())
                 last_print_time = current_time
@@ -161,10 +162,11 @@ class DihedralScanner:
             assert len(self.running_job_path_id) == 0, 'No running jobs should be left after all jobs finished.'
             # load molecule object from finished jobs
             best_grid_m = dict()
-            for job_path, job_grid_id in finished_job_path_ids.items():
+            for job_path, job_from_and_to_ids in finished_job_path_ids.items():
+                from_grid_id, to_grid_id = job_from_and_to_ids
                 m = self.engine.load_task_result_m(job_path)
                 # we will check here if the optimized structure has the desired dihedral ids
-                grid_id = self.get_dihedral_id(m, check_grid_id=job_grid_id)
+                grid_id = self.get_dihedral_id(m, check_grid_id=to_grid_id)
                 if m.qm_energy < self.grid_energies[grid_id] - energy_decrease_thresh:
                     if self.verbose:
                         print("Energy for grid_id %s dropped %f --> %f" % (str(grid_id), self.grid_energies[grid_id], m.qm_energy))
@@ -175,7 +177,7 @@ class DihedralScanner:
             for grid_id, m in best_grid_m.items():
                 # every neighbor grid point will get one new task
                 for neighbor_gid in self.grid_neighbors(grid_id):
-                    task = m, neighbor_gid
+                    task = m, grid_id, neighbor_gid
                     # all jobs are pushed with the same priority for now, can be adjusted here
                     self.opt_queue.push(task)
 
@@ -193,10 +195,11 @@ class DihedralScanner:
     def push_initial_opt_tasks(self):
         """
         Push a set of initial tasks to self.opt_queue
+        A task is defined as (m, from_grid_id, to_grid_id) tuple, where geometry is stored in m
         """
         for m in self.init_coords_M:
-            grid_id = self.get_dihedral_id(m)
-            task = (m, grid_id)
+            from_grid_id = to_grid_id = self.get_dihedral_id(m)
+            task = (m, from_grid_id, to_grid_id)
             self.opt_queue.push(task)
         if self.verbose:
             print("%d initial tasks pushed to opt_queue" % len(self.init_coords_M))
@@ -220,13 +223,13 @@ class DihedralScanner:
         """
         Launch constrained optimizations for molecules in opt_queue
         The current opt_queue will be cleaned up
-        Return a dictionary that contains path and grid_ids: { path0: grid_id0, path1: grid_id1 }
+        Return a dictionary that contains path and grid_ids: { path: (from_grid_id, to_grid_id) }
         """
         new_job_path_ids = dict()
         while len(self.opt_queue) > 0:
-            m, grid_id = self.opt_queue.pop()
-            job_path = self.launch_constrained_opt(m, grid_id)
-            new_job_path_ids[job_path] = grid_id
+            m, from_grid_id, to_grid_id = self.opt_queue.pop()
+            job_path = self.launch_constrained_opt(m, to_grid_id)
+            new_job_path_ids[job_path] = from_grid_id, to_grid_id
         return new_job_path_ids
 
     def launch_constrained_opt(self, molecule, grid_id):
@@ -255,8 +258,8 @@ class DihedralScanner:
         """
         tmp_path = self.tmp_folder_dict[grid_id]
         existing_jobs = os.listdir(tmp_path)
-        next_job_id = len(existing_jobs) + 1
-        job_path = os.path.join(tmp_path, str(next_job_id))
+        next_job_number = len(existing_jobs) + 1
+        job_path = os.path.join(tmp_path, str(next_job_number))
         os.mkdir(job_path)
         return job_path
 
@@ -288,11 +291,16 @@ class DihedralScanner:
         for gid in self.grid_ids:
             m.qm_energies.append(self.grid_energies[gid])
             m.xyzs.append(self.grid_final_geometries[gid])
-            m.comms.append("Dihedral %s Energy %f" % (str(gid), self.grid_energies[gid]))
+            m.comms.append("Dihedral %s Energy %.9f" % (str(gid), self.grid_energies[gid]))
         m.write('qdata.txt')
         print("Final scan energies are written to qdata.txt")
         m.write('scan.xyz')
         print("Final scan energies are written to scan.xyz")
+
+
+    #----------------------------------
+    # Status Drawing Utilites
+    #----------------------------------
 
     def draw_ascii_image(self):
         """ Return a string with ASCII colors showing current running status """
@@ -304,10 +312,10 @@ class DihedralScanner:
         grid_dim = len(self.dihedrals)
         result_str = ""
         count = 0
-        running_job_ids = set(self.running_job_path_id.values())
+        running_to_job_ids = set(to_id for from_id, to_id in self.running_job_path_id.values())
         for grid_id in itertools.product(*[grid_1D]*grid_dim):
             symbol = ' -'
-            if grid_id in running_job_ids:
+            if grid_id in running_to_job_ids:
                 symbol = ' \033[0;33m+\033[0m' # orange for running jobs
             elif grid_id in self.grid_energies:
                 symbol = ' \033[0;36mo\033[0m' # cyan for finished jobs
