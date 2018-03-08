@@ -373,7 +373,7 @@ class DihedralScanner:
                            })
         result_str  = "--== Ramachandran Plot of Optimization Status ==--\n"
         result_str += "--== Blue: Optimized, Green: Found Lower, Red: Next ==--\n"
-        result_str += ' ' + ''.join("%5d" % x for x in grid_1D[::3]) + '\n'
+        result_str += ''.join("%6d" % x for x in grid_1D[::3]) + '\n'
         for y in grid_1D[::-1]:
             line = '%4d '%y + ''.join(status_symbols[grid_status[(x,y)]] for x in grid_1D) + '\n'
             result_str += line
