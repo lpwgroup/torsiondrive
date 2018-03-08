@@ -8,7 +8,7 @@
 
 from __future__ import print_function, division
 import numpy as np
-import os, shutil, time, itertools
+import os, shutil, time, itertools, collections
 from forcebalance.molecule import Molecule
 from QMEngine import EnginePsi4, EngineQChem, EngineTerachem
 from PriorityQueue import PriorityQueue
@@ -47,7 +47,7 @@ class DihedralScanner:
         self.init_coords_M = [init_coords_M[i] for i in range(len(init_coords_M))] if init_coords_M != None else [self.engine.M]
         self.verbose = verbose
         # dictionary that stores the lowest energy for each grid point
-        self.grid_energies = DefaultMaxDict()
+        self.grid_energies = dict()
         # dictionary that stores the geometries corresponding to lowest energy for each grid point
         self.grid_final_geometries = dict()
         # save current path as the rootpath
@@ -141,6 +141,8 @@ class DihedralScanner:
         start_time = last_print_time = time.time()
         # the minimum time interval between prints
         min_print_interval = -1 # Disabled for now
+        # store the grid ids that have found lower energy than existing one, for draw_ramachandran_plot()
+        self.refined_grid_ids = set()
         while True:
             # Launch all jobs in self.opt_queue
             self.running_job_path_id.update(self.launch_opt_jobs())
@@ -148,7 +150,10 @@ class DihedralScanner:
             current_time = time.time()
             if self.verbose and current_time - last_print_time > min_print_interval:
                 print("Scan Status at %d s" % (current_time-start_time))
-                print(self.draw_ascii_image())
+                if len(self.dihedrals) == 2:
+                    print(self.draw_ramachandran_plot())
+                else:
+                    print(self.draw_ascii_image())
                 last_print_time = current_time
             # wait until all job finishes, take out from self.running_job_path_id
             finished_job_path_ids = dict()
@@ -167,9 +172,17 @@ class DihedralScanner:
                 m = self.engine.load_task_result_m(job_path)
                 # we will check here if the optimized structure has the desired dihedral ids
                 grid_id = self.get_dihedral_id(m, check_grid_id=to_grid_id)
-                if m.qm_energy < self.grid_energies[grid_id] - energy_decrease_thresh:
+                update_with_this_result = False
+                if grid_id not in self.grid_energies:
+                    update_with_this_result = True
                     if self.verbose:
-                        print("Energy for grid_id %s dropped %f --> %f" % (str(grid_id), self.grid_energies[grid_id], m.qm_energy))
+                        print("First energy for grid_id %s = %f" % (str(grid_id), m.qm_energy))
+                elif m.qm_energy < self.grid_energies[grid_id] - energy_decrease_thresh:
+                    update_with_this_result = True
+                    self.refined_grid_ids.add(grid_id)
+                    if self.verbose:
+                        print("Energy for grid_id %s dropped from %f to %f" % (str(grid_id), self.grid_energies[grid_id], m.qm_energy))
+                if update_with_this_result == True:
                     self.grid_energies[grid_id] = m.qm_energy
                     self.grid_final_geometries[grid_id] = np.array(m.xyzs[0])
                     best_grid_m[grid_id] = m
@@ -326,6 +339,45 @@ class DihedralScanner:
                     result_str += '\n'
         return result_str
 
+    def draw_ramachandran_plot(self):
+        """ Return a string of Ramachandran plot showing current running status """
+        assert len(self.dihedrals) == 2, "Ramachandran plot only works for 2-D scans"
+        gs = self.grid_spacing
+        grid_1D = range(-180+gs, 180+gs, gs)
+        len1d = len(grid_1D)
+        running_id_from = dict((to_grid_id, from_grid_id) for (from_grid_id, to_grid_id) in self.running_job_path_id.values())
+        # add labels of status for each grid point
+        grid_status = collections.defaultdict(str)
+        gid_direction = {(gs,0):'r', (gs-360,0):'r', (-gs,0):'l', (360-gs,0):'l',
+                         (0,gs):'u', (0,gs-360):'u', (0,-gs):'d', (0,360-gs):'d', (0,0):'o'}
+        for from_gid, to_gid in self.running_job_path_id.values():
+            from_x, from_y = from_gid
+            to_x, to_y = to_gid
+            direction = gid_direction[(to_x-from_x, to_y-from_y)]
+            grid_status[to_gid] += direction
+        for gid in self.refined_grid_ids:
+            if gid not in grid_status:
+                grid_status[gid] = 'f'
+        for gid in self.grid_energies:
+            if gid not in grid_status:
+                grid_status[gid] = 'e'
+        # format string
+        status_symbols = collections.defaultdict(lambda: '\x1b[1;41m><\x1b[0m',
+                           {'':'  ', 'e':'\x1b[44m--\x1b[0m', 'f': '\x1b[42m--\x1b[0m',
+                            'r':'\x1b[1;41m＞\x1b[0m', 'l':'\x1b[1;41m＜\x1b[0m',
+                            'd':'\x1b[1;41m\\/\x1b[0m', 'u':'\x1b[1;41m/\\\x1b[0m',
+                            'dl':'\x1b[41m＼\x1b[0m', 'dr':'\x1b[41m／\x1b[0m',
+                            'ld':'\x1b[41m＼\x1b[0m', 'rd':'\x1b[41m／\x1b[0m',
+                            'ul':'\x1b[41m／\x1b[0m', 'ur':'\x1b[41m＼\x1b[0m',
+                            'lu':'\x1b[41m／\x1b[0m', 'ru':'\x1b[41m＼\x1b[0m'
+                           })
+        result_str  = "--== Ramachandran Plot of Optimization Status ==--\n"
+        result_str += "--== Blue: Optimized, Green: Found Lower, Red: Next ==--\n"
+        result_str += ' ' + ''.join("%5d" % x for x in grid_1D[::3]) + '\n'
+        for y in grid_1D[::-1]:
+            line = '%4d '%y + ''.join(status_symbols[grid_status[(x,y)]] for x in grid_1D) + '\n'
+            result_str += line
+        return result_str
 
 
 
