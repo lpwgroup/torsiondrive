@@ -9,8 +9,12 @@ from heapq import heappush, heappop
 import itertools
 
 class PriorityQueue(object):
+
     def __len__(self):
         return len(self._pq)
+
+    def __iter__(self):
+        return iter(task for priority, count, task in self._pq)
 
     def __init__(self):
         self._pq = []
@@ -22,8 +26,7 @@ class PriorityQueue(object):
         When priority is the same, count ensures the earlier added tasks first
         """
         count = next(self.counter)
-        # -priority used here so the task with higher priority first
-        entry = [-priority, count, task]
+        entry = [priority, count, task]
         heappush(self._pq, entry)
 
     def pop(self):

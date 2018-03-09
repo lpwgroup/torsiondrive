@@ -87,6 +87,7 @@ class QMEngine(object):
 
     def find_finished_jobs(self, running_job_path_id, wait_time=10):
         """ Find finished jobs in job_path_set, return a set of job paths """
+        assert wait_time > 0
         finished_path_set = set()
         if self.work_queue == None:
             # if running locally, all jobs must have finished already
