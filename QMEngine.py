@@ -49,7 +49,7 @@ class QMEngine(object):
         """ Load the optimized geometry and energy into a new molecule object and return """
         m = Molecule('opt.xyz')
         with open('energy.txt') as infile:
-            m.qm_energy = float(infile.read())
+            m.qm_energies = [float(infile.read())]
         return m
 
     def launch_optimize(self, job_path=None):
@@ -217,7 +217,7 @@ class EnginePsi4(QMEngine):
         # step 2
         self.write_input('input.dat')
         # step 3
-        self.run('geometric-optimize --psi4 input.dat constraints.txt > optimize.log', input_files=['input.dat', 'constraints.txt'], output_files=['optimize.log', 'opt.xyz', 'energy.txt'])
+        self.run('geometric-optimize --qccnv --reset --epsilon 0.0 --psi4 input.dat constraints.txt > optimize.log', input_files=['input.dat', 'constraints.txt'], output_files=['optimize.log', 'opt.xyz', 'energy.txt'])
 
     def load_native_output(self, filename='output.dat'):
         """ Load the optimized geometry and energy into a new molecule object and return """
@@ -243,7 +243,7 @@ class EnginePsi4(QMEngine):
         m = Molecule()
         m.elem = elems
         m.xyzs = [np.array(coords, dtype=np.float64)]
-        m.qm_energy = final_energy
+        m.qm_energies = [final_energy]
         return m
 
 
@@ -354,12 +354,11 @@ class EngineQChem(QMEngine):
         # step 2
         self.write_input('qc.in')
         # step 3
-        self.run('geometric-optimize --qchem qc.in constraints.txt > optimize.log', input_files=['qc.in', 'constraints.txt'], output_files=['optimize.log', 'opt.xyz', 'energy.txt'])
+        self.run('geometric-optimize --qccnv --reset --epsilon 0.0 --qchem qc.in constraints.txt > optimize.log', input_files=['qc.in', 'constraints.txt'], output_files=['optimize.log', 'opt.xyz', 'energy.txt'])
 
     def load_native_output(self, filename='qc.out'):
         """ Load the optimized geometry and energy into a new molecule object and return """
         m = Molecule(filename, ftype="qcout")[-1]
-        m.qm_energy = m.qm_energies[0]
         return m
 
 
@@ -451,11 +450,11 @@ class EngineTerachem(QMEngine):
         # step 2
         self.write_input()
         # step 3
-        self.run('geometric-optimize run.in constraints.txt > optimize.log', input_files=['run.in', self.tera_geo_file, 'constraints.txt'], output_files=['optimize.log', 'opt.xyz', 'energy.txt'])
+        self.run('geometric-optimize --qccnv --reset --epsilon 0.0 run.in constraints.txt > optimize.log', input_files=['run.in', self.tera_geo_file, 'constraints.txt'], output_files=['optimize.log', 'opt.xyz', 'energy.txt'])
 
     def load_native_output(self):
         """ Load the optimized geometry and energy into a new molecule object and return """
         m = Molecule('scr/optim.xyz')[-1]
         # read the energy from optim.xyz comment line
-        m.qm_energy = float(m.comms[0].split(None, 1)[0])
+        m.qm_energies = [float(m.comms[0].split(None, 1)[0])]
         return m
