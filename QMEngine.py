@@ -1,5 +1,5 @@
 import numpy as np
-from forcebalance.molecule import Molecule
+from geometric.molecule import Molecule
 import os, subprocess, copy
 
 def check_all_float(iterable):
@@ -173,6 +173,7 @@ class EnginePsi4(QMEngine):
         self.M = Molecule()
         self.M.elem = elems
         self.M.xyzs = [np.array(coords, dtype=np.float64)]
+        self.M.build_topology()
 
     def write_input(self, filename='input.dat'):
         """ Write output based on self.psi4_temp and self.M, using only geometry of the first frame """
@@ -244,6 +245,7 @@ class EnginePsi4(QMEngine):
         m.elem = elems
         m.xyzs = [np.array(coords, dtype=np.float64)]
         m.qm_energies = [final_energy]
+        m.build_topology()
         return m
 
 
@@ -308,6 +310,7 @@ class EngineQChem(QMEngine):
         self.M = Molecule()
         self.M.elem = elems
         self.M.xyzs = [np.array(coords, dtype=np.float64)]
+        self.M.build_topology()
 
     def write_input(self, filename='qc.in'):
         """ Write QChem input using Molecule Class """
