@@ -4,7 +4,7 @@ import work_queue
 
 class WorkQueue:
     def __init__(self, port, name='dihedral'):
-        #work_queue.set_debug_flag('all')
+        work_queue.set_debug_flag('all')
         wq = work_queue.WorkQueue(port=port, exclusive=False, shutdown=False)
         wq.specify_keepalive_interval(8640000)
         wq.specify_name(name)
@@ -57,7 +57,7 @@ class WorkQueue:
         Return a tuple (n_running_workers, n_all_workers, n_finished_jobs, n_total_jobs)
         """
         stats = self.wq.stats
-        n_running_workers = stats.workers_busy + stats.workers_full
+        n_running_workers = stats.workers_busy
         n_all_workers = stats.total_workers_joined - stats.total_workers_removed
         n_finished_jobs = stats.total_tasks_complete - self.tasks_failed
         n_total_jobs = stats.total_tasks_dispatched - self.tasks_failed
