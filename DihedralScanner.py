@@ -9,7 +9,7 @@
 from __future__ import print_function, division
 import numpy as np
 import os, shutil, time, itertools, collections, json, copy, pickle
-from forcebalance.molecule import Molecule
+from geometric.molecule import Molecule
 from QMEngine import EnginePsi4, EngineQChem, EngineTerachem
 from PriorityQueue import PriorityQueue
 
@@ -26,7 +26,7 @@ class DihedralScanner:
         dihedrals: list of dihedral index tuples (d1, d2, d3, d4). The length of list determines the dimension of the grid
                 i.e. dihedrals = [(0,1,2,3)] --> 1-D scan,  dihedrals = [(0,1,2,3),(1,2,3,4)] --> 2-D Scan
         grid_spacing: Distance (in Degrees) between grid points, must be a divisor of 360
-        init_coords_M: a forcebalance.molecule.Molecule object, constains a series of initial geometries to start with
+        init_coords_M: a geometric.molecule.Molecule object, constains a series of initial geometries to start with
         verbose: let methods print more information when running
         """
         self.engine = engine
@@ -324,6 +324,7 @@ class DihedralScanner:
                 result_m.elem = list(m.elem)
                 result_m.xyzs = [final_geo]
                 result_m.qm_energies = [final_energy]
+                result_m.build_topology()
                 grid_id = self.get_dihedral_id(result_m, check_grid_id=to_grid_id)
                 self.current_finished_job_results.push((result_m, grid_id), priority=job_folder)
             else:

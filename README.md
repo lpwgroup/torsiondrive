@@ -7,9 +7,7 @@ DihedralScanner class is designed to create a dihedral grid, and fill in optimiz
 
 * Numpy
 
-* [ForceBalance](https://github.com/leeping/forcebalance) (in particular, the molecule.py)
-
-* [geomeTRIC](https://github.com/leeping/geomeTRIC)  to enable the `geometric-optimize` command
+* [geomeTRIC](https://github.com/leeping/geomeTRIC) molecule.py, also to enable the `geometric-optimize` command
 
 * [cctools.work_queue](https://github.com/cooperative-computing-lab/cctools) [Optional] (to enable the distributed computing feature)
 
