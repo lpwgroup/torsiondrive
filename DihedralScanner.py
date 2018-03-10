@@ -12,6 +12,7 @@ import os, shutil, time, itertools, collections, json, copy, pickle
 from forcebalance.molecule import Molecule
 from QMEngine import EnginePsi4, EngineQChem, EngineTerachem
 from PriorityQueue import PriorityQueue
+from collections import defaultdict
 
 class DihedralScanner:
     """
@@ -176,26 +177,41 @@ class DihedralScanner:
                 else:
                     print(self.draw_ascii_image())
                 last_print_time = current_time
+            # reset the refined_grid_ids
+            self.refined_grid_ids = set()
             # wait until all jobs finish, take out from self.running_job_path_info
             while len(self.running_job_path_info) > 0:
                 self.wait_extract_finished_jobs()
             # check all finished jobs and keep the best ones in best_grid_m
             best_grid_m = dict()
+            # store the grid energies and final geometries 
+            grid_energies_thisIter = defaultdict(list)
+            grid_final_geometries_thisIter = defaultdict(list)
+            grid_molecules_thisIter = defaultdict(list)
             while len(self.current_finished_job_results) > 0:
                 m, grid_id = self.current_finished_job_results.pop()
+                grid_energies_thisIter[grid_id].append(m.qm_energies[0])
+                grid_final_geometries_thisIter[grid_id].append(np.array(m.xyzs[0]))
+                grid_molecules_thisIter[grid_id].append(copy.deepcopy(m))
+            for grid_id in grid_energies_thisIter:
+                idx = np.argmin(np.array(grid_energies_thisIter[grid_id]))
+                energy = grid_energies_thisIter[grid_id][idx]
+                final_geometry = grid_final_geometries_thisIter[grid_id][idx]
+                m = grid_molecules_thisIter[grid_id][idx]
                 if grid_id not in self.grid_energies:
-                    self.grid_energies[grid_id] = m.qm_energy
-                    self.grid_final_geometries[grid_id] = np.array(m.xyzs[0])
+                    self.grid_energies[grid_id] = energy
+                    self.grid_final_geometries[grid_id] = final_geometry
                     best_grid_m[grid_id] = m
                     if self.verbose:
-                        print("First energy for grid_id %s = %f" % (str(grid_id), m.qm_energy))
-                elif m.qm_energy < self.grid_energies[grid_id] - self.energy_decrease_thresh:
-                    self.grid_energies[grid_id] = m.qm_energy
+                        print("First energy for grid_id %s = %f" % (str(grid_id), m.qm_energies[0]))
+                elif m.qm_energies[0] < self.grid_energies[grid_id] - self.energy_decrease_thresh:
+                    old_grid_energy = self.grid_energies[grid_id]
+                    self.grid_energies[grid_id] = m.qm_energies[0]
                     self.grid_final_geometries[grid_id] = np.array(m.xyzs[0])
                     best_grid_m[grid_id] = m
                     self.refined_grid_ids.add(grid_id)
                     if self.verbose:
-                        print("Energy for grid_id %s dropped from %f to %f" % (str(grid_id), self.grid_energies[grid_id], m.qm_energy))
+                        print("Energy for grid_id %s decreased from %f to %f" % (str(grid_id), old_grid_energy, m.qm_energies[0]))
             # create new tasks based on the best_grid_m of this iteration
             for grid_id, m in best_grid_m.items():
                 # every neighbor grid point will get one new task
@@ -315,7 +331,7 @@ class DihedralScanner:
                 result_m = Molecule()
                 result_m.elem = list(m.elem)
                 result_m.xyzs = [final_geo]
-                result_m.qm_energy = final_energy
+                result_m.qm_energies = [final_energy]
                 grid_id = self.get_dihedral_id(result_m, check_grid_id=to_grid_id)
                 self.current_finished_job_results.push((result_m, grid_id), priority=job_folder)
             else:
@@ -376,7 +392,7 @@ class DihedralScanner:
             # we will check here if the optimized structure has the desired dihedral ids
             grid_id = self.get_dihedral_id(m, check_grid_id=to_grid_id)
             # save the parsed task result to disk
-            self.save_task_cache(job_path, m_init, m, m.qm_energy)
+            self.save_task_cache(job_path, m_init, m, m.qm_energies[0])
             # each finished job result is a tuple of (m, grid_id)
             self.current_finished_job_results.push((m, grid_id), priority=job_path)
 
@@ -460,11 +476,11 @@ class DihedralScanner:
                             'dl':'\x1b[41m＼\x1b[0m'   , 'dr':'\x1b[41m／\x1b[0m',
                             'ld':'\x1b[41m＼\x1b[0m'   , 'rd':'\x1b[41m／\x1b[0m',
                             'ul':'\x1b[41m／\x1b[0m'   , 'ur':'\x1b[41m＼\x1b[0m',
-                            'lu':'\x1b[41m／\x1b[0m'   , 'ru':'\x1b[41m＼\x1b[0m'
+                            'lu':'\x1b[41m／\x1b[0m'   , 'ru':'\x1b[41m＼\x1b[0m',
                            })
         result_str  = "--== Ramachandran Plot of Optimization Status ==--\n"
         result_str += "--== Blue: Optimized, Green: Found Lower, Red: Next ==--\n"
-        result_str += ''.join("%6d" % x for x in grid_1D[::3]) + '\n'
+        result_str += "  " + ''.join("%6d" % x for x in grid_1D[::3]) + '\n'
         for y in grid_1D[::-1]:
             line = '%4d '%y + ''.join(status_symbols[grid_status[(x,y)]] for x in grid_1D) + '\n'
             result_str += line
