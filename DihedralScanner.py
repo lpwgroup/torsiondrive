@@ -12,7 +12,6 @@ import os, shutil, time, itertools, collections, json, copy, pickle
 from forcebalance.molecule import Molecule
 from QMEngine import EnginePsi4, EngineQChem, EngineTerachem
 from PriorityQueue import PriorityQueue
-from collections import defaultdict
 
 class DihedralScanner:
     """
@@ -164,10 +163,6 @@ class DihedralScanner:
         # store the grid ids that have found lower energy than existing one, for draw_ramachandran_plot()
         self.refined_grid_ids = set()
         while True:
-            # Launch all jobs in self.opt_queue
-            # new jobs will be put into self.running_job_path_info
-            # job results found in self.task_cache will be added to self.current_finished_job_results
-            self.launch_opt_jobs()
             # check if it's time to show the status
             current_time = time.time()
             if self.verbose and current_time - last_print_time > min_print_interval:
@@ -177,43 +172,40 @@ class DihedralScanner:
                 else:
                     print(self.draw_ascii_image())
                 last_print_time = current_time
-            # reset the refined_grid_ids
-            self.refined_grid_ids = set()
+            # Launch all jobs in self.opt_queue
+            # new jobs will be put into self.running_job_path_info
+            # job results found in self.task_cache will be added to self.current_finished_job_results
+            self.launch_opt_jobs()
             # wait until all jobs finish, take out from self.running_job_path_info
             while len(self.running_job_path_info) > 0:
                 self.wait_extract_finished_jobs()
-            # check all finished jobs and keep the best ones in best_grid_m
-            best_grid_m = dict()
-            # store the grid energies and final geometries 
-            grid_energies_thisIter = defaultdict(list)
-            grid_final_geometries_thisIter = defaultdict(list)
-            grid_molecules_thisIter = defaultdict(list)
+            # check all finished jobs and keep the best ones for the current iteration
+            current_best_grid_m = dict()
             while len(self.current_finished_job_results) > 0:
                 m, grid_id = self.current_finished_job_results.pop()
-                grid_energies_thisIter[grid_id].append(m.qm_energies[0])
-                grid_final_geometries_thisIter[grid_id].append(np.array(m.xyzs[0]))
-                grid_molecules_thisIter[grid_id].append(copy.deepcopy(m))
-            for grid_id in grid_energies_thisIter:
-                idx = np.argmin(np.array(grid_energies_thisIter[grid_id]))
-                energy = grid_energies_thisIter[grid_id][idx]
-                final_geometry = grid_final_geometries_thisIter[grid_id][idx]
-                m = grid_molecules_thisIter[grid_id][idx]
+                if grid_id not in current_best_grid_m or m.qm_energies[0] < current_best_grid_m[grid_id].qm_energies[0]:
+                    current_best_grid_m[grid_id] = m
+            # we only want refined results in current iteration to show in draw_ramachandran_plot()
+            self.refined_grid_ids = set()
+            # compare the best results between current iteration and all previous iterations
+            newly_updated_grid_m = []
+            for grid_id, m in current_best_grid_m.items():
                 if grid_id not in self.grid_energies:
-                    self.grid_energies[grid_id] = energy
-                    self.grid_final_geometries[grid_id] = final_geometry
-                    best_grid_m[grid_id] = m
                     if self.verbose:
                         print("First energy for grid_id %s = %f" % (str(grid_id), m.qm_energies[0]))
-                elif m.qm_energies[0] < self.grid_energies[grid_id] - self.energy_decrease_thresh:
-                    old_grid_energy = self.grid_energies[grid_id]
                     self.grid_energies[grid_id] = m.qm_energies[0]
-                    self.grid_final_geometries[grid_id] = np.array(m.xyzs[0])
-                    best_grid_m[grid_id] = m
-                    self.refined_grid_ids.add(grid_id)
+                    self.grid_final_geometries[grid_id] = m.xyzs[0]
+                    newly_updated_grid_m.append((grid_id, m))
+                elif m.qm_energies[0] < self.grid_energies[grid_id] - self.energy_decrease_thresh:
                     if self.verbose:
-                        print("Energy for grid_id %s decreased from %f to %f" % (str(grid_id), old_grid_energy, m.qm_energies[0]))
-            # create new tasks based on the best_grid_m of this iteration
-            for grid_id, m in best_grid_m.items():
+                        print("Energy for grid_id %s decreased from %f to %f" % (str(grid_id), self.grid_energies[grid_id], m.qm_energies[0]))
+                    self.grid_energies[grid_id] = m.qm_energies[0]
+                    self.grid_final_geometries[grid_id] = m.xyzs[0]
+                    newly_updated_grid_m.append((grid_id, m))
+                    # we record the refined_grid_ids here to be printed as green tiles in draw_ramachandran_plot()
+                    self.refined_grid_ids.add(grid_id)
+            # create new tasks for each newly_updated_grid_m
+            for grid_id, m in newly_updated_grid_m:
                 # every neighbor grid point will get one new task
                 for neighbor_gid in self.grid_neighbors(grid_id):
                     task = m, grid_id, neighbor_gid
@@ -426,14 +418,11 @@ class DihedralScanner:
         grid_dim = len(self.dihedrals)
         result_str = ""
         count = 0
-        running_to_job_ids = set(to_id for m, from_id, to_id in self.running_job_path_info.values())
-        finished_cached_job_ids = set(to_id for m, to_id in self.current_finished_job_results)
+        running_to_job_ids = set(to_grid_id for m, from_grid_id, to_grid_id in self.opt_queue)
         for grid_id in itertools.product(*[grid_1D]*grid_dim):
             symbol = ' -'
             if grid_id in running_to_job_ids:
                 symbol = ' \033[0;33m+\033[0m' # orange for running jobs
-            elif grid_id in finished_cached_job_ids:
-                symbol = ' \033[0;32m+\033[0m'
             elif grid_id in self.grid_energies:
                 symbol = ' \033[0;36mo\033[0m' # cyan for finished jobs
             result_str += symbol
@@ -452,21 +441,19 @@ class DihedralScanner:
         grid_status = collections.defaultdict(str)
         gid_direction = {(gs,0):'r', (gs-360,0):'r', (-gs,0):'l', (360-gs,0):'l',
                          (0,gs):'u', (0,gs-360):'u', (0,-gs):'d', (0,360-gs):'d', (0,0):'o'}
-        for m, from_gid, to_gid in self.running_job_path_info.values():
-            from_x, from_y = from_gid
-            to_x, to_y = to_gid
+        # print the status of jobs that are about to be launched
+        for m, from_grid_id, to_grid_id in self.opt_queue:
+            from_x, from_y = from_grid_id
+            to_x, to_y = to_grid_id
             direction = gid_direction[(to_x-from_x, to_y-from_y)]
-            grid_status[to_gid] += direction
-        # when printing the finished results before even running any calculation, these are cached results
-        for m, gid in self.current_finished_job_results:
-            if gid not in grid_status:
-                grid_status[gid] = 'c'
-        for gid in self.refined_grid_ids:
-            if gid not in grid_status:
-                grid_status[gid] = 'f'
-        for gid in self.grid_energies:
-            if gid not in grid_status:
-                grid_status[gid] = 'e'
+            grid_status[to_grid_id] += direction
+        # if no job launching for this grid point, print the previous result
+        for grid_id in self.refined_grid_ids:
+            if grid_id not in grid_status:
+                grid_status[grid_id] = 'f' # green tiles for just refined results
+        for grid_id in self.grid_energies:
+            if grid_id not in grid_status:
+                grid_status[grid_id] = 'e' # blue tiles for finished results
         # format string
         status_symbols = collections.defaultdict(lambda: '\x1b[1;41m><\x1b[0m',
                            {''  :'  '                  , 'c': '\x1b[46m--\x1b[0m',
