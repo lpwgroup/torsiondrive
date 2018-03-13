@@ -10,8 +10,19 @@ from __future__ import print_function, division
 import numpy as np
 import os, shutil, time, itertools, collections, json, copy, pickle
 from geometric.molecule import Molecule
-from QMEngine import EnginePsi4, EngineQChem, EngineTerachem
-from PriorityQueue import PriorityQueue
+from crank.PriorityQueue import PriorityQueue
+
+def normalize_dihedral(d):
+    """ Normalize any number to the range (-180, 180], including 180 """
+    return d + (180-d)//360*360
+
+def get_geo_key(coords):
+    """
+    Convert an numpy array of xyz coordinate to a hashable object, keeping 0.001 precision
+    This function has the limitation that 3.1999 and 3.2000 will produce different results
+    due to the limitation of float point representation.
+    """
+    return (coords * 1000).astype(int).tobytes()
 
 class DihedralScanner:
     """
@@ -482,17 +493,6 @@ class DihedralScanner:
     #----------------------------------
 
 
-def normalize_dihedral(d):
-    """ Normalize any number to the range (-180, 180], including 180 """
-    return d + (180-d)//360*360
-
-def get_geo_key(coords):
-    """
-    Convert an numpy array of xyz coordinate to a hashable object, keeping 0.001 precision
-    This function has the limitation that 3.1999 and 3.2000 will produce different results
-    due to the limitation of float point representation.
-    """
-    return (coords * 1000).astype(int).tobytes()
 
 def load_dihedralfile(dihedralfile):
     """
