@@ -10,7 +10,7 @@ Crank is designed to create a dihedral grid, and fill in optimized geometries an
 * [cctools.work_queue](https://github.com/cooperative-computing-lab/cctools) [Optional] (to enable the distributed computing feature)
 
 ## Install
-python setup.py install
+`python setup.py install`
 
 ## Run
 `crank-launch <InputFile> <Dihedrals.txt> --init_coords <init_coords.xyz> -g <grid_spacing> -e <Engine> (--native_opt) (--wq_port XXX) (-v) > scan.log`
