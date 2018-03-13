@@ -1,7 +1,5 @@
 # DihedralScanner
-Dihedral Scanner Class Developed From https://github.com/lpwgroup/crank
-
-DihedralScanner class is designed to create a dihedral grid, and fill in optimized geometries and energies into the grid, by running wavefront propagations of constrained optimizations.
+Crank is designed to create a dihedral grid, and fill in optimized geometries and energies into the grid, by running wavefront propagations of constrained optimizations.
 
 ## Dependencies
 
@@ -12,10 +10,10 @@ DihedralScanner class is designed to create a dihedral grid, and fill in optimiz
 * [cctools.work_queue](https://github.com/cooperative-computing-lab/cctools) [Optional] (to enable the distributed computing feature)
 
 ## Install
-No need to install.
+python setup.py install
 
 ## Run
-`python DihedralScanner.py <InputFile> <Dihedrals.txt> --init_coords <init_coords.xyz> -g <grid_spacing> -e <Engine> (--native_opt) (--wq_port XXX) (-v) > scan.log`
+`crank-launch <InputFile> <Dihedrals.txt> --init_coords <init_coords.xyz> -g <grid_spacing> -e <Engine> (--native_opt) (--wq_port XXX) (-v) > scan.log`
 
 ### Input Parameters:
 
