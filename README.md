@@ -1,4 +1,4 @@
-# DihedralScanner
+# Crank
 Crank is designed to create a dihedral grid, and fill in optimized geometries and energies into the grid, by running wavefront propagations of constrained optimizations.
 
 ## Dependencies
