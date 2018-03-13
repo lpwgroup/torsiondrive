@@ -104,6 +104,13 @@ class QMEngine(object):
                     finished_path_set.add(taskpath)
         return finished_path_set
 
+    # An empty engine will not run any real calculations
+    # These two functions will be defined in the subclasses
+    def optimize_native(self):
+        return
+    def optimize_geomeTRIC(self):
+        return
+
 
 class EnginePsi4(QMEngine):
     def load_input(self, input_file):

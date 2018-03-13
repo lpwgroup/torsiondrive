@@ -173,7 +173,12 @@ class DihedralScanner:
         min_print_interval = -1 # Disabled for now
         # store the grid ids that have found lower energy than existing one, for draw_ramachandran_plot()
         self.refined_grid_ids = set()
+        # save the status of grid from beginning of run, useful when generating state files
+        # self.grid_status = collections.defaultdict(list)
         while True:
+            if len(self.grid_energies) == 395:
+                import IPython
+                IPython.embed()
             # check if it's time to show the status
             current_time = time.time()
             if self.verbose and current_time - last_print_time > min_print_interval:
@@ -338,6 +343,7 @@ class DihedralScanner:
                 result_m.build_topology()
                 grid_id = self.get_dihedral_id(result_m, check_grid_id=to_grid_id)
                 self.current_finished_job_results.push((result_m, grid_id), priority=job_folder)
+                #self.grid_status[to_grid_id].append((m.xyzs[0], final_geo, final_energy))
             else:
                 job_path = self.launch_constrained_opt(m, to_grid_id)
                 self.running_job_path_info[job_path] = m, from_grid_id, to_grid_id
@@ -399,7 +405,6 @@ class DihedralScanner:
             self.save_task_cache(job_path, m_init, m, m.qm_energies[0])
             # each finished job result is a tuple of (m, grid_id)
             self.current_finished_job_results.push((m, grid_id), priority=job_path)
-
 
     def finish(self):
         """ Write qdata.txt and scan.xyz file based on converged scan results """
@@ -484,8 +489,6 @@ class DihedralScanner:
             line = '%4d '%y + ''.join(status_symbols[grid_status[(x,y)]] for x in grid_1D) + '\n'
             result_str += line
         return result_str
-
-
 
 
     #----------------------------------

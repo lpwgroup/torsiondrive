@@ -15,6 +15,9 @@ Crank is designed to create a dihedral grid, and fill in optimized geometries an
 ## Run
 `crank-launch <InputFile> <Dihedrals.txt> --init_coords <init_coords.xyz> -g <grid_spacing> -e <Engine> (--native_opt) (--wq_port XXX) (-v) > scan.log`
 
+## API call
+`crank-api current_state.pickle`
+
 ### Input Parameters:
 
 #### positional arguments:

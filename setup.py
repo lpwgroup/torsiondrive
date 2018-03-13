@@ -8,6 +8,7 @@ setup(
     packages=['crank'],
     entry_points={'console_scripts': [
         'crank-launch = crank.launch:main',
+        'crank-api = crank.crankAPI:main',
     ]},
     install_requires=[
         'numpy>=1.11',
