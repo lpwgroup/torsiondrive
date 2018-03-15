@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import print_function
-import os, shutil
+import os, shutil, json, pickle
 from collections import defaultdict
 import numpy as np
 from crank.DihedralScanner import DihedralScanner, get_geo_key
@@ -155,40 +155,80 @@ def get_next_jobs(current_state, verbose=False):
     return next_jobs
 
 
+def current_state_json_dump(current_state, jsonfilename):
+    """ Dump a state to a JSON file """
+    json_state = current_state.copy()
+    json_state['init_coords'] = [map(list, c) for c in current_state['init_coords']]
+    json_state['grid_status'] = []
+    for grid_id, grid_jobs in current_state['grid_status'].items():
+        new_grid_jobs = []
+        for start_geo, end_geo, end_energy in grid_jobs:
+            new_grid_jobs.append([map(list, start_geo), map(list, end_geo), end_energy])
+        json_state['grid_status'].append([grid_id, new_grid_jobs])
+    with open(jsonfilename, 'w') as outfile:
+        json.dump(json_state, outfile, indent=2)
+
+def current_state_json_load(jsonfilename):
+    """ Load a state from JSON file """
+    with open(jsonfilename) as infile:
+        json_state = json.load(infile)
+    grid_status = dict()
+    for grid_id, grid_jobs in json_state['grid_status']:
+        new_grid_id = tuple(grid_id)
+        new_grid_jobs = []
+        for start_geo, end_geo, end_energy in grid_jobs:
+            new_grid_jobs.append([np.array(start_geo, dtype=float), np.array(end_geo, dtype=float), end_energy])
+        grid_status[new_grid_id] = new_grid_jobs
+    json_state['grid_status'] = grid_status
+    return json_state
+
+def next_jobs_json_dump(next_jobs, jsonfilename):
+    """ Dump the next_jobs dictionary to a json file """
+    json_next_jobs = []
+    for grid_id, new_job_list in next_jobs.items():
+        json_job_list = [map(list, new_job_geo) for new_job_geo in new_job_list]
+        json_next_jobs.append([grid_id, json_job_list])
+    with open(jsonfilename, 'w') as outfile:
+        json.dump(json_next_jobs, outfile, indent=2)
+
 
 def main():
-    import argparse, sys, pickle
+    import argparse, sys
     parser = argparse.ArgumentParser(description="Take a scan state and return the next set of optimizations", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('statefile', help='File contains the current state')
-    #parser.add_argument('-t', '--filetype', choices=['pickle', 'json'], default='pickle', help='File type for statefile')
+    parser.add_argument('statefile', help='File contains the current state. Support JSON or pickle format')
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help='Print more information while running.')
     args = parser.parse_args()
 
     # print input command for reproducibility
     print(' '.join(sys.argv))
 
-    # json doesn't work yet because it can not have tuple like (30, 60) as key
-    # with open(args.statefile, 'rb') as infile:
-    #     if args.filetype == 'pickle':
-    #         import pickle
-    #         current_state = pickle.load(infile)
-    #     elif args.filetype == 'json':
-    #         import json
-    #         current_state = json.load(infile)
+    ext = os.path.splitext(args.statefile)[1].lower()
+    if ext == '.json':
+        use_json = True
+    elif ext == '.pickle':
+        use_json = False
+    else:
+        raise ValueError("File extension not recognized. Please use .json or .pickle")
 
-    with open(args.statefile, 'rb') as infile:
-        current_state = pickle.load(infile)
+    if use_json:
+        # we use a parser here because json does not support tuple key or numpy array
+        current_state = current_state_json_load(args.statefile)
+    else:
+        with open(args.statefile, 'rb') as infile:
+            current_state = pickle.load(infile)
 
     next_jobs = get_next_jobs(current_state, verbose=args.verbose)
     if len(next_jobs) > 0:
         print("Number of jobs to run next for each grid id")
         for grid_id in next_jobs.keys():
             print("%-20s %10d" % (str(grid_id), len(next_jobs[grid_id])))
-        with open('next_jobs.pickle', 'wb') as outfile:
-            pickle.dump(next_jobs, outfile)
-        print("Information for next set of jobs is dumped to next_jobs.pickle")
-    else:
-        print("Scan has finished. No further job needs to be done")
+        if use_json:
+            next_jobs_json_dump(next_jobs, 'new_jobs.json')
+            print("Information for next set of jobs is dumped to next_jobs.json")
+        else:
+            with open('next_jobs.pickle', 'wb') as outfile:
+                pickle.dump(next_jobs, outfile)
+            print("Information for next set of jobs is dumped to next_jobs.pickle")
 
 if __name__ == "__main__":
     main()
