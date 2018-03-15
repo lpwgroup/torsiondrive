@@ -223,7 +223,7 @@ def main():
         for grid_id in next_jobs.keys():
             print("%-20s %10d" % (str(grid_id), len(next_jobs[grid_id])))
         if use_json:
-            next_jobs_json_dump(next_jobs, 'new_jobs.json')
+            next_jobs_json_dump(next_jobs, 'next_jobs.json')
             print("Information for next set of jobs is dumped to next_jobs.json")
         else:
             with open('next_jobs.pickle', 'wb') as outfile:
