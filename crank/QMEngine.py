@@ -105,10 +105,14 @@ class QMEngine(object):
         return finished_path_set
 
     # An empty engine will not run any real calculations
-    # These two functions will be defined in the subclasses
+    # These functions will be defined in the subclasses
     def optimize_native(self):
         return
+
     def optimize_geomeTRIC(self):
+        return
+
+    def load_native_output(self):
         return
 
 
@@ -179,7 +183,7 @@ class EnginePsi4(QMEngine):
         # here self.M can be and will be overwritten by external functions
         self.M = Molecule()
         self.M.elem = elems
-        self.M.xyzs = [np.array(coords, dtype=np.float64)]
+        self.M.xyzs = [np.array(coords, dtype=float)]
         self.M.build_topology()
 
     def write_input(self, filename='input.dat'):
@@ -250,7 +254,7 @@ class EnginePsi4(QMEngine):
             raise RuntimeError("Final geometry not found in %s" % filename)
         m = Molecule()
         m.elem = elems
-        m.xyzs = [np.array(coords, dtype=np.float64)]
+        m.xyzs = [np.array(coords, dtype=float)]
         m.qm_energies = [final_energy]
         m.build_topology()
         return m
@@ -316,7 +320,7 @@ class EngineQChem(QMEngine):
         # here self.M can be and will be overwritten by external functions
         self.M = Molecule()
         self.M.elem = elems
-        self.M.xyzs = [np.array(coords, dtype=np.float64)]
+        self.M.xyzs = [np.array(coords, dtype=float)]
         self.M.build_topology()
 
     def write_input(self, filename='qc.in'):

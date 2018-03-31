@@ -1,5 +1,11 @@
-# Crank
-Crank is designed to create a dihedral grid, and fill in optimized geometries and energies into the grid, by running wavefront propagations of constrained optimizations.
+crank
+==============================
+[comment]: <> (Badges)
+[![Travis Build Status](https://travis-ci.org/REPLACE_WITH_OWNER_ACCOUNT/crank.png)](https://travis-ci.org/REPLACE_WITH_OWNER_ACCOUNT/crank)
+[![AppVeyor Build status](https://ci.appveyor.com/api/projects/status/REPLACE_WITH_APPVEYOR_LINK/branch/master?svg=true)](https://ci.appveyor.com/project/REPLACE_WITH_OWNER_ACCOUNT/crank/branch/master)
+[![codecov](https://codecov.io/gh/REPLACE_WITH_OWNER_ACCOUNT/crank/branch/master/graph/badge.svg)](https://codecov.io/gh/REPLACE_WITH_OWNER_ACCOUNT/crank/branch/master)
+
+Dihedral scanner with wavefront propagation
 
 ## Dependencies
 
@@ -16,7 +22,7 @@ Crank is designed to create a dihedral grid, and fill in optimized geometries an
 `crank-launch <InputFile> <Dihedrals.txt> --init_coords <init_coords.xyz> -g <grid_spacing> -e <Engine> (--native_opt) (--wq_port XXX) (-v) > scan.log`
 
 ## API call
-`crank-api current_state.pickle`
+`crank-api current_state.json`
 
 ### Input Parameters:
 
@@ -43,3 +49,8 @@ Crank is designed to create a dihedral grid, and fill in optimized geometries an
 ### Advanced Usage
 
 The `DihedralScanner` Class works together with the `QMEngine` Class, both can be imported and incorporated into other python scripts, to enable more features, and automated scanning for multiple molecules.
+
+#### Acknowledgements
+
+Project based on the
+[Computational Chemistry Python Cookiecutter](https://github.com/choderalab/cookiecutter-python-comp-chem)

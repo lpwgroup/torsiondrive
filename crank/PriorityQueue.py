@@ -1,10 +1,5 @@
 #!/usr/bin/env python
 
-########################
-#  PriorityQueue Tool  #
-#  Author: Yudong Qiu  #
-########################
-
 from heapq import heappush, heappop
 import itertools
 
@@ -35,7 +30,7 @@ class PriorityQueue(object):
         """
         if len(self._pq) == 0:
             raise RuntimeError("pop from an empty priority queue")
-        priority, count, task = heappop(self._pq)
+        _, _, task = heappop(self._pq)
         return task
 
     def push_many(self, tasks, priority=0):
