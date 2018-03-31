@@ -100,7 +100,6 @@ def rebuild_task_cache(grid_status, scanner):
     for grid_id, job_info_list in grid_status.items():
         tname = 'gid_' + '_'.join('%+04d' % gid for gid in grid_id)
         tmp_folder_path = os.path.join(scanner.tmp_folder_name, tname)
-        n_finished_jobs = len(job_info_list)
         for i_job, job_info in enumerate(job_info_list):
             job_path = os.path.join(tmp_folder_path, str(i_job+1))
             os.mkdir(job_path) # empty folder created to mimic the restart behavior
@@ -119,7 +118,7 @@ def get_next_jobs(current_state, verbose=False):
     -------
     current_state: dict, e.g. {
             'dihedrals': [[0,1,2,3], [1,2,3,4]] ,
-            'grid_spacing': 30,
+            'grid_spacing': [30, 30],
             'elements': ['H', 'C', 'O', ...]
             'init_coords': [geo1, geo2, ..]
             'grid_status': {(30, 60): [(start_geo, end_geo, end_energy), ..], ...}

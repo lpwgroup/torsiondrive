@@ -46,7 +46,7 @@ def main():
     parser.add_argument('inputfile', type=str, help='Input template file for QMEngine. Geometry will be used as starting point for scanning.')
     parser.add_argument('dihedralfile', type=str, help='File defining all dihedral angles to be scanned.')
     parser.add_argument('--init_coords', type=str, help='File contain a list of geometries, that will be used as multiple starting points, overwriting the geometry in input file.')
-    parser.add_argument('-g', '--grid_spacing', type=int, default=15, help='Grid spacing for dihedral scan, i.e. every 15 degrees')
+    parser.add_argument('-g', '--grid_spacing', type=int, nargs='*', default=[15], help='Grid spacing for dihedral scan, i.e. every 15 degrees, multiple values will be mapped to each dihedral angle')
     parser.add_argument('-e', '--engine', type=str, default="psi4", choices=['qchem', 'psi4', 'terachem'], help='Engine for running scan')
     parser.add_argument('--native_opt', action='store_true', default=False, help='Use QM program native constrained optimization algorithm. This will turn off geomeTRIC package.')
     parser.add_argument('--wq_port', type=int, default=None, help='Specify port number to use Work Queue to distribute optimization jobs.')
@@ -58,6 +58,16 @@ def main():
 
     # parse the dihedral file
     dihedral_idxs = load_dihedralfile(args.dihedralfile)
+    grid_dim = len(dihedral_idxs)
+
+    # format grid spacing
+    n_grid_spacing = len(args.grid_spacing)
+    if n_grid_spacing == grid_dim:
+        grid_spacing = args.grid_spacing
+    elif n_grid_spacing == 1:
+        grid_spacing = args.grid_spacing * grid_dim
+    else:
+        raise ValueError("Number of grid_spacing values %d is not consistent with number of dihedral angles %d" % (grid_dim, n_grid_spacing))
 
     # create QM Engine, and WorkQueue object if provided port
     engine = create_engine(args.engine, inputfile=args.inputfile, work_queue_port=args.wq_port, native_opt=args.native_opt)
@@ -66,7 +76,7 @@ def main():
     init_coords_M = Molecule(args.init_coords) if args.init_coords else None
 
     # create DihedralScanner object
-    scanner = DihedralScanner(engine, dihedrals=dihedral_idxs, grid_spacing=args.grid_spacing, init_coords_M=init_coords_M, verbose=args.verbose)
+    scanner = DihedralScanner(engine, dihedrals=dihedral_idxs, grid_spacing=grid_spacing, init_coords_M=init_coords_M, verbose=args.verbose)
     # Run the scan!
     scanner.master()
     # After finish, print result
@@ -74,18 +84,6 @@ def main():
     print(" Grid ID                Energy")
     for grid_id in sorted(scanner.grid_energies.keys()):
         print("  %-20s %.10f" % (str(grid_id), scanner.grid_energies[grid_id]))
-
-def test():
-    engine = create_engine('psi4')
-    for dim in range(1, 4):
-        print("Testing %d-D scan setup" % dim)
-        dihedrals = [list(range(d, d+4)) for d in range(dim)]
-        scanner = DihedralScanner(engine, dihedrals=dihedrals, grid_spacing=90)
-        gid = scanner.grid_ids[0]
-        assert len(scanner.grid_ids) == 4**dim and len(gid) == dim
-        assert len(scanner.grid_neighbors(gid)) == 2**dim
-    print("All tests passed!")
-
 
 if __name__ == "__main__":
     main()

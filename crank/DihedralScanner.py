@@ -29,14 +29,14 @@ class DihedralScanner:
     DihedralScanner class is designed to create a dihedral grid, and fill in optimized geometries and energies
     into the grid, by running wavefront propagations of constrained optimizations
     """
-    def __init__(self, engine, dihedrals, grid_spacing=15, init_coords_M=None, verbose=False):
+    def __init__(self, engine, dihedrals, grid_spacing, init_coords_M=None, verbose=False):
         """
         inputs:
         -------
         engine: An QMEngine object, e.g. EnginePsi4, EngineQChem or EngineTerachem
         dihedrals: list of dihedral index tuples (d1, d2, d3, d4). The length of list determines the dimension of the grid
                 i.e. dihedrals = [(0,1,2,3)] --> 1-D scan,  dihedrals = [(0,1,2,3),(1,2,3,4)] --> 2-D Scan
-        grid_spacing: Distance (in Degrees) between grid points, must be a divisor of 360
+        grid_spacing: Distance (in Degrees) between grid points, correspond to each dihedral, every value must be a divisor of 360
         init_coords_M: a geometric.molecule.Molecule object, constains a series of initial geometries to start with
         verbose: let methods print more information when running
         """
@@ -48,9 +48,11 @@ class DihedralScanner:
             dihedral_tuple = tuple(map(int, dihedral))
             assert dihedral_tuple not in self.dihedrals, "All dihedrals should be unique"
             self.dihedrals.append(dihedral_tuple)
-        grid_spacing = int(grid_spacing)
-        assert ( 0 < grid_spacing < 360) and (360 % grid_spacing == 0), "grid_spacing should be a divisor of 360"
-        self.grid_spacing = grid_spacing
+        self.grid_dim = len(self.dihedrals)
+        for gs in grid_spacing:
+            assert (0 < gs < 360) and (360 % gs == 0), "grid_spacing %s is not valid, all values should be a divisor of 360" % grid_spacing
+        assert len(grid_spacing) == self.grid_dim, "Number of grid spacings %d is not consistent with number of dihedrals %d" % (len(grid_spacing), self.grid_dim)
+        self.grid_spacing = tuple(map(int, grid_spacing))
         self.setup_grid()
         self.opt_queue = PriorityQueue()
         # try to use init_coords_M first, if not given, use M in engine's template
@@ -72,6 +74,21 @@ class DihedralScanner:
         # threshold for determining the energy decrease
         self.energy_decrease_thresh = 0.00001
 
+    #----------------------
+    # Initializing methods
+    #----------------------
+
+    def setup_grid(self):
+        """
+        Set up grid ids, each as a tuple with size corresponding to grid dimension. i.e.
+        1-D: grid_ids = ( (-165, ), (-150, ), ... (180, )  )
+        2-D: grid_ids = ( (-165,-165), (-165,-150), ... (180,180)  )
+        This function is called by the initializer.
+        """
+        self.grid_axes = []
+        for gs in self.grid_spacing:
+            self.grid_axes.append(range(-180+gs, 180+gs, gs))
+        self.grid_ids = tuple(itertools.product(*self.grid_axes))
 
     #--------------------
     #  General methods
@@ -96,9 +113,9 @@ class DihedralScanner:
 
     def grid_neighbors(self, grid_id):
         """ Take a center grid id, return all the neighboring grid ids, in each dimension """
-        gs = self.grid_spacing
         neighbor_gridids = []
         for i_dim in range(len(grid_id)):
+            gs = self.grid_spacing[i_dim]
             lower_neighbor = list(grid_id)
             lower_neighbor[i_dim] = normalize_dihedral(grid_id[i_dim] - gs)
             neighbor_gridids.append(tuple(lower_neighbor))
@@ -110,29 +127,12 @@ class DihedralScanner:
     def grid_full_neighbors(self, grid_id):
         """ Take a center grid id, return all the neighboring grid ids, in all dimensions """
         # Note: This function is not in use now, because it's very expensive (and probably unnecessary)
-        gs = self.grid_spacing
         neighbor_gids_each_dim = []
-        for gid_each_dim in grid_id:
+        for gid_each_dim, gs in zip(grid_id, self.grid_spacing):
             lower_neighbor = normalize_dihedral(gid_each_dim - gs)
             higher_neighbor = normalize_dihedral(gid_each_dim + gs)
             neighbor_gids_each_dim.append((lower_neighbor, higher_neighbor))
         return tuple(itertools.product(*neighbor_gids_each_dim))
-
-    #----------------------
-    # Initializing methods
-    #----------------------
-
-    def setup_grid(self):
-        """
-        Set up grid ids, each as a tuple with size corresponding to grid dimension. i.e.
-        1-D: grid_ids = ( (-165, ), (-150, ), ... (180, )  )
-        2-D: grid_ids = ( (-165,-165), (-165,-150), ... (180,180)  )
-        """
-        grid_dim = len(self.dihedrals)
-        gs = self.grid_spacing
-        grid_1D = range(-180+gs, 180+gs, gs)
-        self.grid_ids = tuple(itertools.product(*[grid_1D]*grid_dim))
-
 
     #----------------------
     # Master method
@@ -279,7 +279,7 @@ class DihedralScanner:
         err_msg = "Previous job doesn't match current one, please delete %s to restart" % self.tmp_folder_name
         assert len(self.dihedrals) == len(scanner_settings['dihedrals']), err_msg
         assert np.array_equal(np.array(self.dihedrals), np.array(scanner_settings['dihedrals'])), err_msg
-        assert self.grid_spacing == scanner_settings['grid_spacing'], err_msg
+        assert np.array_equal(self.grid_spacing, scanner_settings['grid_spacing']), err_msg
         # read all finished jobs in tmp folder
         self.tmp_folder_dict = dict()
         n_cache = 0
@@ -296,7 +296,8 @@ class DihedralScanner:
                         task_geo_key = get_geo_key(task_result['initial_geo'])
                         self.task_cache[grid_id][task_geo_key] = (task_result['final_geo'], task_result['final_energy'], job_folder)
                         n_cache += 1
-                    except:
+                    except Exception as e:
+                        print("Error while loading result_fname:" + str(e))
                         pass
         if self.verbose:
             print("Successfully loaded %s cached results" % n_cache)
@@ -428,15 +429,11 @@ class DihedralScanner:
     def draw_ascii_image(self):
         """ Return a string with ASCII colors showing current running status """
         if not hasattr(self, 'grid_energies') or not hasattr(self, 'running_job_path_info'):
-            return ""
-        gs = self.grid_spacing
-        grid_1D = range(-180+gs, 180+gs, gs)
-        len1d = len(grid_1D)
-        grid_dim = len(self.dihedrals)
+            return "draw_ascii_image failed: grid_energies or running_job_path_info not available"
         result_str = ""
         count = 0
         running_to_job_ids = set(to_grid_id for m, from_grid_id, to_grid_id in self.opt_queue)
-        for grid_id in itertools.product(*[grid_1D]*grid_dim):
+        for grid_id in self.grid_ids:
             symbol = ' -'
             if grid_id in running_to_job_ids:
                 symbol = ' \033[0;33m+\033[0m' # orange for running jobs
@@ -444,20 +441,22 @@ class DihedralScanner:
                 symbol = ' \033[0;36mo\033[0m' # cyan for finished jobs
             result_str += symbol
             count += 1
-            for i_dim in range(1, grid_dim):
-                if count % (len1d)**i_dim == 0:
+            end_number = 1
+            for i_dim in range(self.grid_dim):
+                end_number *= len(self.grid_axes[i_dim])
+                if count % end_number == 0:
                     result_str += '\n'
         return result_str
 
     def draw_ramachandran_plot(self):
         """ Return a string of Ramachandran plot showing current running status """
-        assert len(self.dihedrals) == 2, "Ramachandran plot only works for 2-D scans"
-        gs = self.grid_spacing
-        grid_1D = range(-180+gs, 180+gs, gs)
+        assert self.grid_dim == 2, "Ramachandran plot only works for 2-D scans"
+        gsx, gsy = self.grid_spacing
+        grid_x, grid_y = self.grid_axes
         # add labels of status for each grid point
         grid_status = collections.defaultdict(str)
-        gid_direction = {(gs,0):'r', (gs-360,0):'r', (-gs,0):'l', (360-gs,0):'l',
-                         (0,gs):'u', (0,gs-360):'u', (0,-gs):'d', (0,360-gs):'d', (0,0):'o'}
+        gid_direction = {(gsx,0):'r', (gsx-360,0):'r', (-gsx,0):'l', (360-gsx,0):'l',
+                         (0,gsy):'u', (0,gsy-360):'u', (0,-gsy):'d', (0,360-gsy):'d', (0,0):'o'}
         # print the status of jobs that are about to be launched
         for m, from_grid_id, to_grid_id in self.opt_queue:
             from_x, from_y = from_grid_id
@@ -484,9 +483,9 @@ class DihedralScanner:
                            })
         result_str  = "--== Ramachandran Plot of Optimization Status ==--\n"
         result_str += "--== Blue: Optimized, Green: Found Lower, Red: Next ==--\n"
-        result_str += "  " + ''.join("%6d" % x for x in grid_1D[::3]) + '\n'
-        for y in grid_1D[::-1]:
-            line = '%4d '%y + ''.join(status_symbols[grid_status[(x,y)]] for x in grid_1D) + '\n'
+        result_str += "  " + ''.join("%6d" % x for x in grid_x[::3]) + '\n'
+        for y in grid_y[::-1]:
+            line = '%4d '%y + ''.join(status_symbols[grid_status[(x,y)]] for x in grid_x) + '\n'
             result_str += line
         return result_str
 
@@ -503,7 +502,7 @@ def test():
     for dim in range(1, 4):
         print("Testing %d-D scan setup" % dim)
         dihedrals = [list(range(d, d+4)) for d in range(dim)]
-        scanner = DihedralScanner(engine, dihedrals=dihedrals, grid_spacing=90)
+        scanner = DihedralScanner(engine, dihedrals=dihedrals, grid_spacing=[90]*dim)
         gid = scanner.grid_ids[0]
         assert len(scanner.grid_ids) == 4**dim and len(gid) == dim
         assert len(scanner.grid_neighbors(gid)) == 2*dim
