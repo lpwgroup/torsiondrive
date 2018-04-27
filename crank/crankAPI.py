@@ -136,7 +136,7 @@ def get_next_jobs(current_state, verbose=False):
     # rebuild the init_coords_M molecule object
     init_coords_M = Molecule()
     init_coords_M.elem = current_state['elements']
-    init_coords_M.xyzs = map(np.array, current_state['init_coords'])
+    init_coords_M.xyzs = current_state['init_coords']
     init_coords_M.build_topology()
     # create a new scanner object
     scanner = DihedralScanner(QMEngine(), dihedrals, grid_spacing, init_coords_M, verbose)
@@ -157,13 +157,14 @@ def get_next_jobs(current_state, verbose=False):
 def current_state_json_dump(current_state, jsonfilename):
     """ Dump a state to a JSON file """
     json_state = current_state.copy()
-    json_state['init_coords'] = [map(list, c) for c in current_state['init_coords']]
-    json_state['grid_status'] = []
+    json_state['init_coords'] = [c.ravel().tolist() for c in current_state['init_coords']]
+    json_state['grid_status'] = dict()
     for grid_id, grid_jobs in current_state['grid_status'].items():
+        grid_id_str = ','.join(map(str, grid_id))
         new_grid_jobs = []
         for start_geo, end_geo, end_energy in grid_jobs:
-            new_grid_jobs.append([map(list, start_geo), map(list, end_geo), end_energy])
-        json_state['grid_status'].append([grid_id, new_grid_jobs])
+            new_grid_jobs.append([start_geo.ravel().tolist(), end_geo.ravel().tolist(), end_energy])
+        json_state['grid_status'][grid_id_str] = new_grid_jobs
     with open(jsonfilename, 'w') as outfile:
         json.dump(json_state, outfile, indent=2)
 
@@ -171,22 +172,31 @@ def current_state_json_load(jsonfilename):
     """ Load a state from JSON file """
     with open(jsonfilename) as infile:
         json_state = json.load(infile)
+    natoms = len(json_state['elements'])
+    # convert geometries into correct numpy format
+    init_coords = [np.array(c, dtype=float).reshape(natoms, 3) for c in json_state['init_coords']]
+    json_state['init_coords'] = init_coords
+    # convert grid_status into dictionary
     grid_status = dict()
-    for grid_id, grid_jobs in json_state['grid_status']:
-        new_grid_id = tuple(grid_id)
+    for grid_id, grid_jobs in json_state['grid_status'].items():
+        new_grid_id = tuple(int(i) for i in grid_id.split(','))
         new_grid_jobs = []
         for start_geo, end_geo, end_energy in grid_jobs:
-            new_grid_jobs.append([np.array(start_geo, dtype=float), np.array(end_geo, dtype=float), end_energy])
+            # convert to numpy array, shape should match here
+            start_geo = np.array(start_geo, dtype=float).reshape(natoms,3)
+            end_geo = np.array(end_geo, dtype=float).reshape(natoms,3)
+            new_grid_jobs.append([start_geo, end_geo, end_energy])
         grid_status[new_grid_id] = new_grid_jobs
     json_state['grid_status'] = grid_status
     return json_state
 
 def next_jobs_json_dump(next_jobs, jsonfilename):
     """ Dump the next_jobs dictionary to a json file """
-    json_next_jobs = []
+    json_next_jobs = dict()
     for grid_id, new_job_list in next_jobs.items():
-        json_job_list = [map(list, new_job_geo) for new_job_geo in new_job_list]
-        json_next_jobs.append([grid_id, json_job_list])
+        grid_id_str = ','.join(map(str, grid_id))
+        json_job_list = [new_job_geo.ravel().tolist() for new_job_geo in new_job_list]
+        json_next_jobs[grid_id_str] = json_job_list
     with open(jsonfilename, 'w') as outfile:
         json.dump(json_next_jobs, outfile, indent=2)
 
