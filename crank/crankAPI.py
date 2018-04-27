@@ -136,7 +136,7 @@ def get_next_jobs(current_state, verbose=False):
     # rebuild the init_coords_M molecule object
     init_coords_M = Molecule()
     init_coords_M.elem = current_state['elements']
-    init_coords_M.xyzs = map(np.array, current_state['init_coords'])
+    init_coords_M.xyzs = list(map(np.array, current_state['init_coords']))
     init_coords_M.build_topology()
     # create a new scanner object
     scanner = DihedralScanner(QMEngine(), dihedrals, grid_spacing, init_coords_M, verbose)
