@@ -12,7 +12,7 @@ requirements:
   build:
     - python
     - setuptools
-
+    - geometric
   run:
     - python
 
@@ -23,5 +23,5 @@ test:
     - crank
 
 about:
-  home: add_url_here
-  license: BSD-3-Clause License
+  home: https://github.com/lpwgroup/crank
+  license: MIT License
