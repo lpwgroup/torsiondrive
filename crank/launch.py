@@ -33,7 +33,7 @@ def create_engine(enginename, inputfile=None, work_queue_port=None, native_opt=F
     engine_dict = {'psi4': EnginePsi4, 'qchem': EngineQChem, 'terachem':EngineTerachem}
     # initialize a work_queue
     if work_queue_port != None:
-        from WQtools import WorkQueue
+        from crank.WQtools import WorkQueue
         work_queue = WorkQueue(work_queue_port)
     else:
         work_queue = None
