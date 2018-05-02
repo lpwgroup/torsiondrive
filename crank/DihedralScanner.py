@@ -176,9 +176,6 @@ class DihedralScanner:
         # save the status of grid from beginning of run, useful when generating state files
         # self.grid_status = collections.defaultdict(list)
         while True:
-            if len(self.grid_energies) == 395:
-                import IPython
-                IPython.embed()
             # check if it's time to show the status
             current_time = time.time()
             if self.verbose and current_time - last_print_time > min_print_interval:
