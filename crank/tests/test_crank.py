@@ -225,19 +225,18 @@ def test_reproduce_2D_example():
     # reproduce qchem work_queue geomeTRIC
     os.chdir('propanol-2d/work_queue_qchem_geomeTRIC')
     shutil.copy('scan.xyz', 'orig_scan.xyz')
-    dihedral_idxs = launch.load_dihedralfile('dihedrals.txt')
-    engine = launch.create_engine('qchem', inputfile='qc.in')
-    scanner = DihedralScanner(engine, dihedrals=dihedral_idxs, grid_spacing=[15, 15], verbose=True)
-    scanner.master()
+    argv = sys.argv[:]
+    sys.argv = 'crank-launch qc.in dihedrals.txt -e qchem -g 15 -v'.split()
+    launch.main()
     assert filecmp.cmp('scan.xyz', 'orig_scan.xyz')
     os.chdir(example_path)
     # reproduce qchem work_queue native_opt
     os.chdir('propanol-2d/work_queue_qchem_native_opt')
     shutil.copy('scan.xyz', 'orig_scan.xyz')
-    dihedral_idxs = launch.load_dihedralfile('dihedrals.txt')
-    engine = launch.create_engine('qchem', inputfile='qc.in', native_opt=True)
-    scanner = DihedralScanner(engine, dihedrals=dihedral_idxs, grid_spacing=[15, 15], verbose=True)
-    scanner.master()
+    shutil.copy('scan.xyz', 'orig_scan.xyz')
+    sys.argv = 'crank-launch qc.in dihedrals.txt -e qchem -g 15 --native_opt -v'.split()
+    launch.main()
+    sys.argv = argv
     assert filecmp.cmp('scan.xyz', 'orig_scan.xyz')
     os.chdir(example_path)
 
@@ -252,7 +251,10 @@ def test_reproduce_api_example():
     if not os.path.isdir('api_example'):
         subprocess.call('tar zxf api_example.tar.gz', shell=True)
     os.chdir('api_example')
-    current_state = crankAPI.current_state_json_load('current_state.json')
-    next_jobs = crankAPI.get_next_jobs(current_state, verbose=True)
-    crankAPI.next_jobs_json_dump(next_jobs, 'new.json')
-    assert filecmp.cmp('new.json', 'next_jobs.json')
+    argv = sys.argv[:]
+    sys.argv = ['crank-api', 'current_state.json', '-v']
+    shutil.copy('next_jobs.json', 'orig_next_jobs.json')
+    crankAPI.main()
+    sys.argv = argv
+    assert filecmp.cmp('next_jobs.json', 'orig_next_jobs.json')
+
