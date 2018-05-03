@@ -260,3 +260,11 @@ def test_reproduce_api_example():
     current_state = crankAPI.current_state_json_load('current_state.json')
     crankAPI.current_state_json_dump(current_state, 'new_current_state.json')
     assert filecmp.cmp('current_state.json', 'new_current_state.json')
+
+@pytest.mark.skipif("work_queue" not in sys.modules, reason='work_queue not found')
+def test_work_queue():
+    from crank.WQtools import WorkQueue
+    wq = WorkQueue(56789)
+    wq.submit('echo test')
+    assert wq.check_finished_task_path() == None
+    wq.print_queue_status()
