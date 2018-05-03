@@ -57,7 +57,7 @@ def test_qm_engine():
     engine = QMEngine()
     assert hasattr(engine, 'temp_type')
 
-def test_reproduce_1D_example():
+def test_reproduce_1D_examples():
     """
     Testing Reproducing Examples/hooh-1d
     """
@@ -67,10 +67,38 @@ def test_reproduce_1D_example():
     os.chdir(example_path)
     if not os.path.isdir('hooh-1d'):
         subprocess.call('tar zxf hooh-1d.tar.gz', shell=True)
+    # reproduce psi4 local geomeTRIC
     os.chdir('hooh-1d/psi4/run_local/geomeTRIC')
     shutil.copy('scan.xyz', 'orig_scan.xyz')
     dihedral_idxs = launch.load_dihedralfile('dihedrals.txt')
     engine = launch.create_engine('psi4', inputfile='input.dat')
+    scanner = DihedralScanner(engine, dihedrals=dihedral_idxs, grid_spacing=[15], verbose=True)
+    scanner.master()
+    assert filecmp.cmp('scan.xyz', 'orig_scan.xyz')
+    os.chdir(example_path)
+    # reproduce psi4 local native_opt
+    os.chdir('hooh-1d/psi4/run_local/native_opt')
+    shutil.copy('scan.xyz', 'orig_scan.xyz')
+    dihedral_idxs = launch.load_dihedralfile('dihedrals.txt')
+    engine = launch.create_engine('psi4', inputfile='input.dat', native_opt=True)
+    scanner = DihedralScanner(engine, dihedrals=dihedral_idxs, grid_spacing=[15], verbose=True)
+    scanner.master()
+    assert filecmp.cmp('scan.xyz', 'orig_scan.xyz')
+    os.chdir(example_path)
+    # reproduce qchem local geomeTRIC
+    os.chdir('hooh-1d/qchem/run_local/geomeTRIC')
+    shutil.copy('scan.xyz', 'orig_scan.xyz')
+    dihedral_idxs = launch.load_dihedralfile('dihedrals.txt')
+    engine = launch.create_engine('qchem', inputfile='qc.in')
+    scanner = DihedralScanner(engine, dihedrals=dihedral_idxs, grid_spacing=[15], verbose=True)
+    scanner.master()
+    assert filecmp.cmp('scan.xyz', 'orig_scan.xyz')
+    os.chdir(example_path)
+    # reproduce terachem local geomeTRIC
+    os.chdir('hooh-1d/terachem/run_local/geomeTRIC')
+    shutil.copy('scan.xyz', 'orig_scan.xyz')
+    dihedral_idxs = launch.load_dihedralfile('dihedrals.txt')
+    engine = launch.create_engine('terachem', inputfile='run.in')
     scanner = DihedralScanner(engine, dihedrals=dihedral_idxs, grid_spacing=[15], verbose=True)
     scanner.master()
     assert filecmp.cmp('scan.xyz', 'orig_scan.xyz')
@@ -85,6 +113,7 @@ def test_reproduce_2D_example():
     os.chdir(example_path)
     if not os.path.isdir('propanol-2d'):
         subprocess.call('tar zxf propanol-2d.tar.gz', shell=True)
+    # reproduce qchem work_queue geomeTRIC
     os.chdir('propanol-2d/work_queue_qchem_geomeTRIC')
     shutil.copy('scan.xyz', 'orig_scan.xyz')
     dihedral_idxs = launch.load_dihedralfile('dihedrals.txt')
@@ -92,6 +121,16 @@ def test_reproduce_2D_example():
     scanner = DihedralScanner(engine, dihedrals=dihedral_idxs, grid_spacing=[15, 15], verbose=True)
     scanner.master()
     assert filecmp.cmp('scan.xyz', 'orig_scan.xyz')
+    os.chdir(example_path)
+    # reproduce qchem work_queue native_opt
+    os.chdir('propanol-2d/work_queue_qchem_native_opt')
+    shutil.copy('scan.xyz', 'orig_scan.xyz')
+    dihedral_idxs = launch.load_dihedralfile('dihedrals.txt')
+    engine = launch.create_engine('qchem', inputfile='qc.in', native_opt=True)
+    scanner = DihedralScanner(engine, dihedrals=dihedral_idxs, grid_spacing=[15, 15], verbose=True)
+    scanner.master()
+    assert filecmp.cmp('scan.xyz', 'orig_scan.xyz')
+    os.chdir(example_path)
 
 def test_reproduce_api_example():
     """
