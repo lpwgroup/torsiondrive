@@ -399,7 +399,9 @@ class EngineTerachem(QMEngine):
             for line in terain:
                 # we don't need to change the temp
                 self.tera_temp.append(line)
-                key, value = line.strip().lower().split(None, 1)
+                linest = line.strip()
+                if not linest: continue
+                key, value = linest.lower().split(None, 1)
                 if key == 'coordinates':
                     geo_file = value
                 elif key == 'run':
