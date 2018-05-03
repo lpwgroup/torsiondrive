@@ -12,6 +12,7 @@ requirements:
   build:
     - python
     - numpy
+    - geometric
     - setuptools
   run:
     - python
