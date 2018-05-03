@@ -71,7 +71,7 @@ def test_reproduce_1D_example():
     shutil.copy('scan.xyz', 'orig_scan.xyz')
     dihedral_idxs = launch.load_dihedralfile('dihedrals.txt')
     engine = launch.create_engine('psi4', inputfile='input.dat')
-    scanner = DihedralScanner(engine, dihedrals=dihedral_idxs, grid_spacing=[15])
+    scanner = DihedralScanner(engine, dihedrals=dihedral_idxs, grid_spacing=[15], verbose=True)
     scanner.master()
     assert filecmp.cmp('scan.xyz', 'orig_scan.xyz')
 
@@ -89,7 +89,7 @@ def test_reproduce_2D_example():
     shutil.copy('scan.xyz', 'orig_scan.xyz')
     dihedral_idxs = launch.load_dihedralfile('dihedrals.txt')
     engine = launch.create_engine('qchem', inputfile='qc.in')
-    scanner = DihedralScanner(engine, dihedrals=dihedral_idxs, grid_spacing=[15, 15])
+    scanner = DihedralScanner(engine, dihedrals=dihedral_idxs, grid_spacing=[15, 15], verbose=True)
     scanner.master()
     assert filecmp.cmp('scan.xyz', 'orig_scan.xyz')
 
@@ -105,6 +105,6 @@ def test_reproduce_api_example():
         subprocess.call('tar zxf api_example.tar.gz', shell=True)
     os.chdir('api_example')
     current_state = crankAPI.current_state_json_load('current_state.json')
-    next_jobs = crankAPI.get_next_jobs(current_state)
+    next_jobs = crankAPI.get_next_jobs(current_state, verbose=True)
     crankAPI.next_jobs_json_dump(next_jobs, 'new.json')
     assert filecmp.cmp('new.json', 'next_jobs.json')
