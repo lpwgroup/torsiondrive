@@ -33,7 +33,7 @@ before_install:
 install:
 
     # Create test environment for package
-  - conda create --yes -n test python=$PYTHON_VER pip pytest pytest-cov
+  - conda create --yes -n test python=$PYTHON_VER pip pytest pytest-cov numpy
   - source activate test
 
     # Install pip only modules
@@ -41,9 +41,7 @@ install:
 
     # Build and install package
   - bash devtools/travis-ci/install_geomeTRIC.sh
-  - conda build --python=$PYTHON_VER devtools/conda-recipe
-  - conda install --yes --use-local crank
-
+  - python setup.py install
 
 script:
   - pytest -v --cov=crank crank/tests/
