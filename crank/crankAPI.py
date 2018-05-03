@@ -153,7 +153,6 @@ def get_next_jobs(current_state, verbose=False):
         next_jobs[to_grid_id].append(m.xyzs[0])
     return next_jobs
 
-
 def current_state_json_dump(current_state, jsonfilename):
     """ Dump a state to a JSON file """
     json_state = current_state.copy()
@@ -199,7 +198,6 @@ def next_jobs_json_dump(next_jobs, jsonfilename):
         json_next_jobs[grid_id_str] = json_job_list
     with open(jsonfilename, 'w') as outfile:
         json.dump(json_next_jobs, outfile, indent=2)
-
 
 def main():
     import argparse, sys

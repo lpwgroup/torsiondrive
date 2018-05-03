@@ -72,42 +72,76 @@ def test_qm_engine():
     assert engine.optimize_geomeTRIC() == None
     assert engine.load_native_output() == None
 
-def test_psi4_engine():
-    # test Psi4 Engine
+def test_engine_psi4_native():
+    """
+    Testing EnginePsi4
+    """
+    os.mkdir('test.tmp')
+    os.chdir('test.tmp')
     with open('input.dat', 'w') as psi4in:
         psi4in.write("""
-        memory 12 gb
-        molecule {
-        0 1
-        H  -0.90095  -0.50851  -0.76734
-        O  -0.72805   0.02496   0.02398
-        O   0.72762   0.03316  -0.02696
-        H   0.90782  -0.41394   0.81465
-        units angstrom
-        no_reorient
-        symmetry c1
-        }
-        set globals {
-            basis         6-31+g*
-            freeze_core   True
-            guess         sad
-            scf_type      df
-            print         1
-        }
-        set_num_threads(1)
-        optimize('mp2')
-        """)
+molecule {
+0 1
+H  -1.116 -0.681 -0.191
+O  -0.519  0.008 -0.566
+O   0.518  0.074  0.561
+H   1.126 -0.641  0.258
+units angstrom
+}
+set basis 6-31g
+
+optimize('mp2')
+""")
     engine = EnginePsi4(input_file='input.dat', native_opt=True)
     assert hasattr(engine, 'M')
     engine.set_dihedral_constraints([[0,1,2,3,90]])
-    with pytest.raises(subprocess.CalledProcessError):
+    try:
         engine.optimize_native()
-    os.unlink('input.dat')
-    with pytest.raises(OSError):
-        engine.load_native_output()
+        m = engine.load_native_output()
+        assert pytest.approx(-150.9647, 0.0001) == m.qm_energies[0]
+    except subprocess.CalledProcessError:
+        pass
+    os.chdir('..')
+    shutil.rmtree('test.tmp')
 
-def test_qchem_engine():
-    # test Psi4 Engine
+def test_engine_psi4_geometric():
+    """
+    Testing EnginePsi4 by geomeTRIC
+    """
+    os.mkdir('test.tmp')
+    os.chdir('test.tmp')
+    with open('input.dat', 'w') as psi4in:
+        psi4in.write("""
+molecule {
+0 1
+H  -1.116 -0.681 -0.191
+O  -0.519  0.008 -0.566
+O   0.518  0.074  0.561
+H   1.126 -0.641  0.258
+units angstrom
+}
+set basis 6-31g
+
+gradient('mp2')
+""")
+    engine = EnginePsi4(input_file='input.dat')
+    assert hasattr(engine, 'M')
+    engine.set_dihedral_constraints([[0,1,2,3,90]])
+    try:
+        engine.optimize_geomeTRIC()
+        m = engine.load_geomeTRIC_output()
+        assert pytest.approx(-150.9647, 0.0001) == m.qm_energies[0]
+    except subprocess.CalledProcessError:
+        pass
+    os.chdir('..')
+    shutil.rmtree('test.tmp')
+
+def test_engine_qchem_native():
+    """
+    Testing EngineQChem
+    """
+    os.mkdir('test.tmp')
+    os.chdir('test.tmp')
     with open('qc.in', 'w') as outfile:
         outfile.write("""
         $molecule
@@ -128,14 +162,56 @@ def test_qchem_engine():
     engine = EngineQChem(input_file='qc.in', native_opt=True)
     assert hasattr(engine, 'M')
     engine.set_dihedral_constraints([[0,1,2,3,90]])
-    with pytest.raises(subprocess.CalledProcessError):
+    try:
         engine.optimize_native()
-    os.unlink('qc.in')
-    with pytest.raises(OSError):
-        engine.load_native_output()
+        m = engine.load_native_output()
+        assert pytest.approx(-149.9420, 0.0001) == m.qm_energies[0]
+    except subprocess.CalledProcessError:
+        pass
+    os.chdir('..')
+    shutil.rmtree('test.tmp')
 
-def test_terachem_engine():
-    # test Psi4 Engine
+def test_engine_qchem_geometric():
+    """
+    Testing EngineQChem by geomeTRIC
+    """
+    os.mkdir('test.tmp')
+    os.chdir('test.tmp')
+    with open('qc.in', 'w') as outfile:
+        outfile.write("""
+        $molecule
+        0 1
+        H  -3.20093  1.59945  -0.91132
+        O  -2.89333  1.61677  -0.01202
+        O  -1.41314  1.60154   0.01202
+        H  -1.10554  1.61886   0.91132
+        $end
+
+        $rem
+        jobtype              force
+        exchange             hf
+        basis                3-21g
+        geom_opt_max_cycles  150
+        $end
+        """)
+    engine = EngineQChem(input_file='qc.in')
+    assert hasattr(engine, 'M')
+    engine.set_dihedral_constraints([[0,1,2,3,90]])
+    try:
+        engine.optimize_geomeTRIC()
+        m = engine.load_geomeTRIC_output()
+        assert pytest.approx(-149.9420, 0.0001) == m.qm_energies[0]
+    except subprocess.CalledProcessError:
+        pass
+    os.chdir('..')
+    shutil.rmtree('test.tmp')
+
+def test_engine_terachem_native():
+    """
+    Testing EngineTerachem
+    """
+    os.mkdir('test.tmp')
+    os.chdir('test.tmp')
     with open('run.in', 'w') as outfile:
         outfile.write("""
         coordinates start.xyz
@@ -158,13 +234,51 @@ def test_terachem_engine():
     engine = EngineTerachem(input_file='run.in', native_opt=True)
     assert hasattr(engine, 'M')
     engine.set_dihedral_constraints([[0,1,2,3,90]])
-    with pytest.raises(subprocess.CalledProcessError):
+    try:
         engine.optimize_native()
-    os.unlink('run.in')
-    os.unlink('start.xyz')
-    os.unlink('run.out')
-    with pytest.raises(OSError):
-        engine.load_native_output()
+        m = engine.load_native_output()
+        assert pytest.approx(-151.5334, 0.0001) == m.qm_energies[0]
+    except subprocess.CalledProcessError:
+        pass
+    os.chdir('..')
+    shutil.rmtree('test.tmp')
+
+def test_engine_terachem_geometric():
+    """
+    Testing EngineTerachem by geomeTRIC
+    """
+    os.mkdir('test.tmp')
+    os.chdir('test.tmp')
+    with open('run.in', 'w') as outfile:
+        outfile.write("""
+        coordinates start.xyz
+        run gradient
+        basis 6-31g*
+        method rb3lyp
+        charge 0
+        spinmult 1
+        dispersion yes
+        scf diis+a
+        maxit 50
+        """)
+    with open('start.xyz', 'w') as outfile:
+        outfile.write("""4\n
+        H  -3.20093  1.59945  -0.91132
+        O  -2.89333  1.61677  -0.01202
+        O  -1.41314  1.60154   0.01202
+        H  -1.10554  1.61886   0.91132
+        """)
+    engine = EngineTerachem(input_file='run.in')
+    assert hasattr(engine, 'M')
+    engine.set_dihedral_constraints([[0,1,2,3,90]])
+    try:
+        engine.optimize_geomeTRIC()
+        m = engine.load_geomeTRIC_output()
+        assert pytest.approx(-151.5334, 0.0001) == m.qm_energies[0]
+    except subprocess.CalledProcessError:
+        pass
+    os.chdir('..')
+    shutil.rmtree('test.tmp')
 
 def test_reproduce_1D_examples():
     """
@@ -264,7 +378,15 @@ def test_reproduce_api_example():
 @pytest.mark.skipif("work_queue" not in sys.modules, reason='work_queue not found')
 def test_work_queue():
     from crank.WQtools import WorkQueue
+    import time
     wq = WorkQueue(56789)
-    wq.submit('echo test')
-    assert wq.check_finished_task_path() == None
+    wq.submit('echo test > test.txt', [], ['test.txt'])
+    assert wq.get_queue_status() == (0,0,0,0)
+    # submit a worker
+    p = subprocess.Popen("$HOME/opt/cctools/bin/work_queue_worker localhost 56789 -t 1", shell=True)
+    assert wq.check_finished_task_path(wait_time=5) == os.getcwd()
+    assert wq.get_queue_status() == (0,1,1,1)
     wq.print_queue_status()
+    assert os.path.isfile('test.txt')
+    assert open('test.txt').read().strip() == 'test'
+    os.unlink('test.txt')
