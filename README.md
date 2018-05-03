@@ -1,9 +1,8 @@
 crank
 ==============================
-[comment]: <> (Badges)
-[![Travis Build Status](https://travis-ci.org/REPLACE_WITH_OWNER_ACCOUNT/crank.png)](https://travis-ci.org/REPLACE_WITH_OWNER_ACCOUNT/crank)
-[![AppVeyor Build status](https://ci.appveyor.com/api/projects/status/REPLACE_WITH_APPVEYOR_LINK/branch/master?svg=true)](https://ci.appveyor.com/project/REPLACE_WITH_OWNER_ACCOUNT/crank/branch/master)
-[![codecov](https://codecov.io/gh/REPLACE_WITH_OWNER_ACCOUNT/crank/branch/master/graph/badge.svg)](https://codecov.io/gh/REPLACE_WITH_OWNER_ACCOUNT/crank/branch/master)
+[![Travis Build Status](https://travis-ci.org/lpwgroup/crank.png)](https://travis-ci.org/lpwgroup/crank)
+[![AppVeyor Build status](https://ci.appveyor.com/api/projects/status/lpwgroup/branch/master?svg=true)](https://ci.appveyor.com/project/lpwgroup/crank/branch/master)
+[![codecov](https://codecov.io/gh/lpwgroup/crank/branch/master/graph/badge.svg)](https://codecov.io/gh/lpwgroup/crank/branch/master)
 
 Dihedral scanner with wavefront propagation
 
