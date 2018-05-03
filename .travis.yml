@@ -40,8 +40,8 @@ install:
   - pip install codecov
 
     # Build and install package
-  - conda build --python=$PYTHON_VER devtools/conda-recipe
   - bash devtools/travis-ci/install_geometric.sh
+  - conda build --python=$PYTHON_VER devtools/conda-recipe
   - conda install --yes --use-local crank
 
 
