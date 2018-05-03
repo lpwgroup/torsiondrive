@@ -161,6 +161,8 @@ def test_terachem_engine():
     with pytest.raises(subprocess.CalledProcessError):
         engine.optimize_native()
     os.unlink('run.in')
+    os.unlink('start.xyz')
+    os.unlink('run.out')
     with pytest.raises(OSError):
         engine.load_native_output()
 
