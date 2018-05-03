@@ -390,7 +390,6 @@ def test_work_queue():
         if path != None:
             assert path == os.getcwd()
             break
-    assert wq.get_queue_status() == (0,1,1,1)
     wq.print_queue_status()
     assert os.path.isfile('test.txt')
     assert open('test.txt').read().strip() == 'test'
