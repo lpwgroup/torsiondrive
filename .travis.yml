@@ -27,7 +27,7 @@ before_install:
 install:
 
     # Create test environment for package
-  - conda create --yes -n test python=$PYTHON_VER pip pytest pytest-cov numpy
+  - conda create --yes -n test python=$PYTHON_VER pip pytest pytest-cov numpy swig
   - source activate test
 
     # Install pip only modules
