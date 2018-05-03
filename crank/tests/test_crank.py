@@ -257,4 +257,6 @@ def test_reproduce_api_example():
     crankAPI.main()
     sys.argv = argv
     assert filecmp.cmp('next_jobs.json', 'orig_next_jobs.json')
-
+    current_state = crankAPI.current_state_json_load('current_state.json')
+    crankAPI.current_state_json_dump(current_state, 'new_current_state.json')
+    assert filecmp.cmp('current_state.json', 'new_current_state.json')
