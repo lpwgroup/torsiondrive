@@ -485,26 +485,3 @@ class DihedralScanner:
             line = '%4d '%y + ''.join(status_symbols[grid_status[(x,y)]] for x in grid_x) + '\n'
             result_str += line
         return result_str
-
-
-    #----------------------------------
-    # End of the DihedralScanner class
-    #----------------------------------
-
-
-
-def test():
-    from crank.QMEngine import QMEngine
-    engine = QMEngine()
-    for dim in range(1, 4):
-        print("Testing %d-D scan setup" % dim)
-        dihedrals = [list(range(d, d+4)) for d in range(dim)]
-        scanner = DihedralScanner(engine, dihedrals=dihedrals, grid_spacing=[90]*dim)
-        gid = scanner.grid_ids[0]
-        assert len(scanner.grid_ids) == 4**dim and len(gid) == dim
-        assert len(scanner.grid_neighbors(gid)) == 2*dim
-    print("All tests passed!")
-
-
-if __name__ == "__main__":
-    test()
