@@ -11,8 +11,8 @@ build:
 requirements:
   build:
     - python
+    - numpy
     - setuptools
-    - geometric
   run:
     - python
 
