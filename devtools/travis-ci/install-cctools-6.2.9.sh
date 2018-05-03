@@ -24,13 +24,13 @@ sed -i s/"long_timeout = 3600"/"long_timeout = 86400"/g work_queue/src/work_queu
 # Disable globus
 # sed -i s/"config_globus_path=auto"/"config_globus_path=no"/g configure
 
-#---- 
-# Provide install prefix for cctools as well as 
+#----
+# Provide install prefix for cctools as well as
 # locations of Swig and Python packages (i.e. the
 # executable itself is inside the bin subdirectory).
 #
-# This is to ensure that we can call the correct 
-# versions of Python and Swig since the version 
+# This is to ensure that we can call the correct
+# versions of Python and Swig since the version
 # installed for the OS might be too old.
 #----
 prefix=$HOME/opt/cctools
@@ -64,6 +64,8 @@ fi
 # and Python lives in $HOME/local.
 #----
 # Configure, make, make install.
+CC=gcc
+CXX=g++
 if [[ $pyver =~ "3." ]] ; then
     ./configure --prefix $prefix/$version --with-python-path no --with-perl-path no --with-globus-path no --with-python3-path $pypath --with-swig-path $swgpath
 else
@@ -79,7 +81,7 @@ make && make install && cd work_queue && make install
 # rm -f cctools
 # ln -s $cctools cctools
 # cd cctools/bin
-# for i in wq_submit_workers.common sge_submit_workers torque_submit_workers slurm_submit_workers ; do 
+# for i in wq_submit_workers.common sge_submit_workers torque_submit_workers slurm_submit_workers ; do
 #     if [ -f $HOME/etc/work_queue/$i ] ; then
 #         echo "Replacing $i with LP's custom version"
 #         mv $i $i.bak
