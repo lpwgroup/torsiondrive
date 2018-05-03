@@ -374,6 +374,7 @@ def test_reproduce_api_example():
     current_state = crankAPI.current_state_json_load('current_state.json')
     crankAPI.current_state_json_dump(current_state, 'new_current_state.json')
     assert filecmp.cmp('current_state.json', 'new_current_state.json')
+    os.chdir(example_path)
 
 @pytest.mark.skipif("work_queue" not in sys.modules, reason='work_queue not found')
 def test_work_queue():
@@ -384,7 +385,11 @@ def test_work_queue():
     assert wq.get_queue_status() == (0,0,0,0)
     # submit a worker
     p = subprocess.Popen("$HOME/opt/cctools/bin/work_queue_worker localhost 56789 -t 1", shell=True)
-    assert wq.check_finished_task_path(wait_time=5) == os.getcwd()
+    for _ in range(10):
+        path = wq.check_finished_task_path()
+        if path != None:
+            assert path == os.getcwd()
+            break
     assert wq.get_queue_status() == (0,1,1,1)
     wq.print_queue_status()
     assert os.path.isfile('test.txt')
