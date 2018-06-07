@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import print_function
-import os, shutil, json, pickle
+import os, shutil, json, copy
 from collections import defaultdict
 import numpy as np
 from crank.DihedralScanner import DihedralScanner, get_geo_key
@@ -167,10 +167,9 @@ def current_state_json_dump(current_state, jsonfilename):
     with open(jsonfilename, 'w') as outfile:
         json.dump(json_state, outfile, indent=2)
 
-def current_state_json_load(jsonfilename):
-    """ Load a state from JSON file """
-    with open(jsonfilename) as infile:
-        json_state = json.load(infile)
+def current_state_json_load(json_state_dict):
+    """ Load a state from JSON dictionary """
+    json_state = copy.deepcopy(json_state_dict)
     natoms = len(json_state['elements'])
     # convert geometries into correct numpy format
     init_coords = [np.array(c, dtype=float).reshape(natoms, 3) for c in json_state['init_coords']]
@@ -189,53 +188,43 @@ def current_state_json_load(jsonfilename):
     json_state['grid_status'] = grid_status
     return json_state
 
-def next_jobs_json_dump(next_jobs, jsonfilename):
+def next_jobs_json_dict(next_jobs):
     """ Dump the next_jobs dictionary to a json file """
     json_next_jobs = dict()
     for grid_id, new_job_list in next_jobs.items():
         grid_id_str = ','.join(map(str, grid_id))
         json_job_list = [new_job_geo.ravel().tolist() for new_job_geo in new_job_list]
         json_next_jobs[grid_id_str] = json_job_list
-    with open(jsonfilename, 'w') as outfile:
-        json.dump(json_next_jobs, outfile, indent=2)
+    return json_next_jobs
+
+def crank_api(json_dict, verbose=False):
+    current_state = current_state_json_load(json_dict)
+    next_jobs = get_next_jobs(current_state, verbose=verbose)
+    json_next_jobs = next_jobs_json_dict(next_jobs)
+    return json_next_jobs
 
 def main():
     import argparse, sys
     parser = argparse.ArgumentParser(description="Take a scan state and return the next set of optimizations", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('statefile', help='File contains the current state. Support JSON or pickle format')
+    parser.add_argument('statefile', help='File contains the current state in JSON format')
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help='Print more information while running.')
     args = parser.parse_args()
-
     # print input command for reproducibility
     print(' '.join(sys.argv))
-
-    ext = os.path.splitext(args.statefile)[1].lower()
-    if ext == '.json':
-        use_json = True
-    elif ext == '.pickle':
-        use_json = False
-    else:
-        raise ValueError("File extension not recognized. Please use .json or .pickle")
-
-    if use_json:
-        # we use a parser here because json does not support tuple key or numpy array
-        current_state = current_state_json_load(args.statefile)
-    else:
-        with open(args.statefile, 'rb') as infile:
-            current_state = pickle.load(infile)
-
-    next_jobs = get_next_jobs(current_state, verbose=args.verbose)
-    if len(next_jobs) > 0:
+    # Load json dictionary from file
+    json_dict = json.load(open(args.statefile))
+    # run the api
+    json_next_jobs = crank_api(json_dict, verbose=args.verbose)
+    # dump results to file
+    json.dump(json_next_jobs, open('next_jobs.json','w'), indent=2)
+    print("Information for next set of jobs is dumped to next_jobs.json")
+    # print results
+    if len(json_next_jobs) > 0:
         print("Number of jobs to run next for each grid id")
-        for grid_id in next_jobs.keys():
-            print("%-20s %10d" % (str(grid_id), len(next_jobs[grid_id])))
-        if use_json:
-            next_jobs_json_dump(next_jobs, 'next_jobs.json')
-            print("Information for next set of jobs is dumped to next_jobs.json")
-        else:
-            with open('next_jobs.pickle', 'wb') as outfile:
-                pickle.dump(next_jobs, outfile)
-            print("Information for next set of jobs is dumped to next_jobs.pickle")
+        for grid_id in json_next_jobs.keys():
+            print("%-20s %10d" % (str(grid_id), len(json_next_jobs[grid_id])))
+    else:
+        print("All crank jobs finished.")
 
 if __name__ == "__main__":
     main()

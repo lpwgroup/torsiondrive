@@ -3,7 +3,7 @@ Unit and regression test for the crank package.
 """
 
 import pytest
-import os, sys, subprocess, filecmp, shutil
+import os, sys, subprocess, filecmp, shutil, json
 import numpy as np
 from crank.DihedralScanner import DihedralScanner, Molecule
 from crank.QMEngine import QMEngine, EnginePsi4, EngineQChem, EngineTerachem
@@ -371,7 +371,7 @@ def test_reproduce_api_example():
     crankAPI.main()
     sys.argv = argv
     assert filecmp.cmp('next_jobs.json', 'orig_next_jobs.json')
-    current_state = crankAPI.current_state_json_load('current_state.json')
+    current_state = crankAPI.current_state_json_load(json.load(open('current_state.json')))
     crankAPI.current_state_json_dump(current_state, 'new_current_state.json')
     assert filecmp.cmp('current_state.json', 'new_current_state.json')
     os.chdir(example_path)
