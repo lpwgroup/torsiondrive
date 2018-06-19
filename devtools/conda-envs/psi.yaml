@@ -12,6 +12,9 @@ dependencies:
   - numpy
   - networkx
 
+    # for building cctools.workqueue
+  - swig
+
     # Testing
   - pytest
   - codecov
