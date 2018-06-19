@@ -28,7 +28,7 @@ before_install:
 install:
 
     # Create test environment for package
-  - conda env create --yes -n test python=$PYTHON_VER -f devtools/conda-envs/psi.yaml
+  - conda env create -n test python=$PYTHON_VER -f devtools/conda-envs/psi.yaml
   - source activate test
 
     # Build and install package
