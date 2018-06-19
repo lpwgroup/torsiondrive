@@ -8,7 +8,8 @@ matrix:
     # Extra includes for OSX since python language is not available by default on OSX
     - os: osx
       language: generic
-      env: PYTHON_VER=3.6
+      env:
+        - PYTHON_VER=3.6
 
     - os: linux
       python: 3.6
@@ -27,11 +28,8 @@ before_install:
 install:
 
     # Create test environment for package
-  - conda create --yes -n test python=$PYTHON_VER pip pytest pytest-cov numpy swig
+  - conda create --yes -n test python=$PYTHON_VER -f devtools/conda-envs/psi.yaml
   - source activate test
-
-    # Install pip only modules
-  - pip install codecov
 
     # Build and install package
   - bash devtools/travis-ci/install_geomeTRIC.sh
