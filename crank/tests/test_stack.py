@@ -91,13 +91,12 @@ def test_stack_psi4():
     test_folder = os.path.join(this_file_folder, 'files', 'hooh-psi4')
     os.chdir(test_folder)
     engine = Psi4QCEngineEngine('start.xyz')
-    #scanner = DihedralScanner(engine, dihedrals=[[0,1,6,10],[1,6,10,11]], grid_spacing=[15, 15], verbose=True)
-    scanner = DihedralScanner(engine, dihedrals=[[0,1,2,3]], grid_spacing=[15], verbose=True)
+    scanner = DihedralScanner(engine, dihedrals=[[0,1,2,3]], grid_spacing=[30], verbose=True)
     scanner.master()
     result_energies = [scanner.grid_energies[grid_id] for grid_id in sorted(scanner.grid_energies.keys())]
     assert np.allclose(result_energies, [-151.17383,-151.17416,-151.17455,-151.17477,-151.17455,-151.17367,-151.17199,
         -151.16962,-151.16686,-151.16424,-151.16236,-151.16167,-151.16236,-151.16424,-151.16686,-151.16962,-151.17199,
-        -151.17367,-151.17455,-151.17477,-151.17455,-151.17416,-151.17383,-151.17370], atol=1e-4)
+        -151.17367,-151.17455,-151.17477,-151.17455,-151.17416,-151.17383,-151.17370][1::2], atol=1e-4)
     os.chdir(orig_path)
 
 # We commented out the RDKit tests now since it has several issues
