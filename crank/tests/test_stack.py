@@ -3,20 +3,18 @@ Unit and regression test for the crank package.
 """
 
 import pytest
-import os, sys, subprocess, filecmp, shutil, json
+import os, sys, json
 import numpy as np
 from crank.DihedralScanner import DihedralScanner, Molecule
 from crank.QMEngine import QMEngine
-from crank.PriorityQueue import PriorityQueue
 import geometric
+from geometric.nifty import bohr2ang
 
 try:
     import qcengine
     import psi4
 except:
     pass
-
-bohr2ang = 0.529177210
 
 class Psi4QCEngineEngine(QMEngine):
     def __init__(self, *args, **kwargs):

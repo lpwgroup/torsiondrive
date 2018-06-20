@@ -9,13 +9,12 @@ from crank.DihedralScanner import Molecule
 from crank.QMEngine import QMEngine
 from crank.crankAPI import crank_api
 import geometric
+from geometric.nifty import bohr2ang
 
 try:
     import psi4
 except:
     pass
-
-bohr2ang = 0.529177210
 
 class FakeServer:
     """
