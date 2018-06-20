@@ -16,9 +16,36 @@ try:
 except:
     pass
 
-class FakeServer:
+class SimpleServer:
+    """ A simple server that interfaces with crank and geometric to do the dihedral scanning work flow """
+    def __init__(self, crankServerAPI):
+        self.crankServerAPI = crankServerAPI
+
+    def run_crank_scan(self):
+        """
+        Run crank scan in the following steps:
+        1. Take an xyz file and dihedrals list, create json input for crank
+        2. Send the json input dictionary to crankAPI.crank_api(), get the next set of jobs
+        3. Take the set of jobs and run them with engine. Finish if there're no new jobs.
+        4. Collect the results and put them into new json input dictionary
+        5. Go back to step 2.
+        """
+        # step 1
+        crank_state = self.crankServerAPI.create_initial_api_input()
+        while True:
+            # step 2
+            next_jobs = crank_api(crank_state, verbose=True)
+            # step 3
+            if len(next_jobs) == 0:
+                print("Crank Scan Finished")
+                return self.crankServerAPI.collect_lowest_energies(crank_state)
+            # step 4
+            job_results = self.crankServerAPI.run_jobs(next_jobs)
+            crank_state = self.crankServerAPI.update_crank_state(crank_state, job_results)
+
+class CrankServerAPI:
     """
-    A fake server, that do these things:
+    A class contain API functions that can be used by the server, that do these things:
     1. Take an xyz file and dihedrals list, create json input for crank
     2. Send the json input dictionary to crankAPI.crank_api(), get the next set of jobs
     3. Take the set of jobs and run them with engine. Finish if there're no new jobs.
@@ -31,21 +58,6 @@ class FakeServer:
         self.grid_spacing = grid_spacing
         self.engine = Psi4QCEngineEngine()
         self.engine.M = copy.deepcopy(self.M)
-
-    def run(self):
-        # step 1
-        in_dict = self.create_initial_api_input()
-        while True:
-            # step 2
-            next_jobs = crank_api(in_dict, verbose=True)
-            # step 3
-            if len(next_jobs) > 0:
-                # step 4
-                job_results = self.run_jobs(next_jobs)
-                in_dict = self.update_api_input(in_dict, job_results)
-            else:
-                print("Finished")
-                return self.collect_lowest_energies(in_dict)
 
     def create_initial_api_input(self):
         """ Create the initial input dictionary for crank-api """
@@ -94,7 +106,7 @@ class FakeServer:
                 job_results[result_grid_id_str].append(job_result_tuple)
         return job_results
 
-    def update_api_input(self, in_dict, job_results):
+    def update_crank_state(self, in_dict, job_results):
         updated_dict = copy.deepcopy(in_dict)
         updated_dict['grid_status'] = collections.defaultdict(list, updated_dict['grid_status'])
         for grid_id_str, job_result_tuple_list in job_results.items():
@@ -182,8 +194,9 @@ def test_stack_fakeserver():
     this_file_folder = os.path.dirname(os.path.realpath(__file__))
     test_folder = os.path.join(this_file_folder, 'files', 'hooh-fakeserver')
     os.chdir(test_folder)
-    fakeserver = FakeServer('start.xyz', dihedrals=[[0,1,2,3]], grid_spacing=[30])
-    lowest_energies = fakeserver.run()
+    crankServerAPI = CrankServerAPI('start.xyz', dihedrals=[[0,1,2,3]], grid_spacing=[30])
+    simpleServer = SimpleServer(crankServerAPI)
+    lowest_energies = simpleServer.run_crank_scan()
     result_energies = [lowest_energies[grid_id] for grid_id in sorted(lowest_energies.keys())]
     assert np.allclose(result_energies, [-151.17383,-151.17416,-151.17455,-151.17477,-151.17455,-151.17367,-151.17199,
         -151.16962,-151.16686,-151.16424,-151.16236,-151.16167,-151.16236,-151.16424,-151.16686,-151.16962,-151.17199,
