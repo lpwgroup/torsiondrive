@@ -31,7 +31,7 @@ install:
   - python setup.py install
 
 script:
-  - travis_wait 30 pytest -v --cov=crank crank/tests/
+  - travis_wait 100 pytest -v --cov=crank crank/tests/
 
 notifications:
     email: false
