@@ -47,7 +47,7 @@ class SimpleServer:
             job_results = collections.defaultdict(list)
             for grid_id_str, job_geo_list in next_jobs.items():
                 for job_geo in job_geo_list:
-                    dihedral_values = tuple(int(i) for i in grid_id_str.split(','))
+                    dihedral_values = crankServerAPI.gridIDStr_to_dihedralValues(grid_id_str)
                     geometric_input_dict = self.make_geomeTRIC_input(dihedral_values, job_geo)
                     geometric_output_dict = geometric.run_json.geometric_run_json(geometric_input_dict)
                     final_geo = geometric_output_dict['final_molecule']['molecule']['geometry']
@@ -72,7 +72,7 @@ class SimpleServer:
             "schema_version": 1,
             "molecule": {
                 "geometry": geometry,
-                "symbols": self.M.elem
+                "symbols": self.elements
             },
             "driver": "gradient",
             "model": {
