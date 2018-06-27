@@ -9,6 +9,7 @@ from crank.DihedralScanner import DihedralScanner, get_geo_key
 from crank.QMEngine import QMEngine
 from crank.PriorityQueue import PriorityQueue
 from geometric.molecule import Molecule
+from geometric.nifty import bohr2ang, ang2bohr
 
 # extend the DihedralScanner to allow repeating the previous scan process
 def repeat_scan_process(self):
@@ -156,13 +157,13 @@ def get_next_jobs(current_state, verbose=False):
 def current_state_json_dump(current_state, jsonfilename):
     """ Dump a state to a JSON file """
     json_state = current_state.copy()
-    json_state['init_coords'] = [c.ravel().tolist() for c in current_state['init_coords']]
+    json_state['init_coords'] = [(c*ang2bohr).ravel().tolist() for c in current_state['init_coords']]
     json_state['grid_status'] = dict()
     for grid_id, grid_jobs in current_state['grid_status'].items():
         grid_id_str = ','.join(map(str, grid_id))
         new_grid_jobs = []
         for start_geo, end_geo, end_energy in grid_jobs:
-            new_grid_jobs.append([start_geo.ravel().tolist(), end_geo.ravel().tolist(), end_energy])
+            new_grid_jobs.append([(start_geo*ang2bohr).ravel().tolist(), (end_geo*ang2bohr).ravel().tolist(), end_energy])
         json_state['grid_status'][grid_id_str] = new_grid_jobs
     with open(jsonfilename, 'w') as outfile:
         json.dump(json_state, outfile, indent=2)
@@ -172,19 +173,35 @@ def current_state_json_load(json_state_dict):
     json_state = copy.deepcopy(json_state_dict)
     natoms = len(json_state['elements'])
     # convert geometries into correct numpy format
-    init_coords = [np.array(c, dtype=float).reshape(natoms, 3) for c in json_state['init_coords']]
+    init_coords = [np.array(c, dtype=float).reshape(natoms, 3) * bohr2ang for c in json_state['init_coords']]
     json_state['init_coords'] = init_coords
     # convert grid_status into dictionary
-    grid_status = dict()
-    for grid_id, grid_jobs in json_state['grid_status'].items():
-        new_grid_id = tuple(int(i) for i in grid_id.split(','))
-        new_grid_jobs = []
+    grid_status = defaultdict(list)
+    # create a molecule object here to evaluate dihedrals later
+    m = Molecule()
+    m.xyzs = init_coords
+    m.elem = json_state['elements']
+    m.build_bonds()
+    dihedrals = json_state['dihedrals']
+    grid_spacing = json_state['grid_spacing']
+    for grid_id_str, grid_jobs in json_state['grid_status'].items():
+        grid_id = tuple(int(i) for i in grid_id_str.split(','))
         for start_geo, end_geo, end_energy in grid_jobs:
             # convert to numpy array, shape should match here
-            start_geo = np.array(start_geo, dtype=float).reshape(natoms,3)
-            end_geo = np.array(end_geo, dtype=float).reshape(natoms,3)
-            new_grid_jobs.append([start_geo, end_geo, end_energy])
-        grid_status[new_grid_id] = new_grid_jobs
+            start_geo = np.array(start_geo, dtype=float).reshape(natoms,3) * bohr2ang
+            end_geo = np.array(end_geo, dtype=float).reshape(natoms,3) * bohr2ang
+            # here we check if the end_geo matches the target grid id
+            m.xyzs = [end_geo]
+            dihedral_values = np.array([m.measure_dihedrals(*d)[0] for d in dihedrals])
+            for dv, dref in zip(dihedral_values, grid_id):
+                diff = abs(dv - dref)
+                if min(diff, abs(360-diff)) > 0.9:
+                    print("Warning! dihedral values inconsistent with target grid_id")
+                    print('dihedral_values', dihedral_values, 'ref_grid_id', grid_id)
+            dihedral_id = (np.round(dihedral_values / grid_spacing) * grid_spacing).astype(int)
+            real_grid_id = tuple((d + (180-d)//360*360) for d in dihedral_id)
+            # here we append the result into the real grid_id
+            grid_status[real_grid_id].append((start_geo, end_geo, end_energy))
     json_state['grid_status'] = grid_status
     return json_state
 
@@ -193,7 +210,7 @@ def next_jobs_json_dict(next_jobs):
     json_next_jobs = dict()
     for grid_id, new_job_list in next_jobs.items():
         grid_id_str = ','.join(map(str, grid_id))
-        json_job_list = [new_job_geo.ravel().tolist() for new_job_geo in new_job_list]
+        json_job_list = [(new_job_geo*ang2bohr).ravel().tolist() for new_job_geo in new_job_list]
         json_next_jobs[grid_id_str] = json_job_list
     return json_next_jobs
 
