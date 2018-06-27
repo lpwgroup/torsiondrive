@@ -26,20 +26,21 @@ class Psi4QCEngineEngine(QMEngine):
         self.M = Molecule(input_file)
 
     def optimize_geomeTRIC(self):
-        """ run the constrained optimization using geomeTRIC package, in 3 steps:
-        1. Write a constraints.txt file.
-        2. Create a json input for a constrained optimization
-        3. Run the job
+        """ run the constrained optimization using geomeTRIC package:
+        1. Create a json input for a constrained optimization
+        2. Run the job
         """
         # step 1
-        self.write_constraints_txt()
-        # step 2
         in_json_dict = self.create_in_json_dict()
-        # step 3
+        # step 2
         key = os.getcwd()
         self.stored_results[key] = geometric.run_json.geometric_run_json(in_json_dict)
 
     def create_in_json_dict(self):
+        constraints_string = "$set\n"
+        for d1, d2, d3, d4, v in self.dihedral_idx_values:
+            # geomeTRIC use atomic index starting from 1
+            constraints_string += "dihedral %d %d %d %d %f\n" % (d1+1, d2+1, d3+1, d4+1, v)
         qc_schema_input = {
             "schema_name": "qc_schema_input",
             "schema_version": 1,
@@ -60,7 +61,7 @@ class Psi4QCEngineEngine(QMEngine):
             "schema_version": 1,
             "keywords": {
                 "coordsys": "tric",
-                'constraints': 'constraints.txt',
+                'constraints': constraints_string,
                 "program": "psi4"
             },
             "input_specification": qc_schema_input
