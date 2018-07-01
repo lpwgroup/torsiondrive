@@ -2,12 +2,17 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import print_function
-import os, shutil, json, copy
+
+import copy
+import json
+import os
+import shutil
 from collections import defaultdict
+
 import numpy as np
 from crank.DihedralScanner import DihedralScanner, get_geo_key
-from crank.QMEngine import QMEngine
 from crank.PriorityQueue import PriorityQueue
+from crank.QMEngine import QMEngine
 from geometric.molecule import Molecule
 from geometric.nifty import bohr2ang, ang2bohr
 
@@ -41,7 +46,7 @@ def repeat_scan_process(self):
         if len(self.running_job_path_info) > 0: break
 
         # If all jobs found in the current iteration, parse the results
-        current_best_grid_m = dict()
+        current_best_grid_m = {}
         while len(self.current_finished_job_results) > 0:
             m, grid_id = self.current_finished_job_results.pop()
             if grid_id not in current_best_grid_m or m.qm_energies[0] < current_best_grid_m[grid_id].qm_energies[0]:

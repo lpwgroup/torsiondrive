@@ -13,7 +13,7 @@ from geometric.nifty import bohr2ang
 try:
     import qcengine
     import psi4
-except:
+except ImportError:
     pass
 
 class Psi4QCEngineEngine(QMEngine):

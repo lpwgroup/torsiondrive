@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
-from heapq import heappush, heappop
 import itertools
+from heapq import heappush, heappop
+
 
 class PriorityQueue(object):
 

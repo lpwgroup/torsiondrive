@@ -2,7 +2,9 @@
 # This file is expected to be loaded by the server
 # It contains functions for the server to generate inputs for crankAPI and parse outputs of crankAPI
 
-import copy, collections
+import collections
+import copy
+
 
 def create_initial_api_input(dihedrals, grid_spacing, elements, init_coords):
     """ Create the initial input dictionary for crank-api """

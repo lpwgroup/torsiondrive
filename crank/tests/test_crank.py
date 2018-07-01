@@ -68,9 +68,10 @@ def test_qm_engine():
     assert engine.find_finished_jobs([], wait_time=1) == set()
     with pytest.raises(OSError):
         engine.load_task_result_m()
-    assert engine.optimize_native() == None
-    assert engine.optimize_geomeTRIC() == None
-    assert engine.load_native_output() == None
+    assert engine.optimize_native() is None
+    assert engine.optimize_geomeTRIC() is None
+    assert engine.load_native_output() is None
+
 
 def test_engine_psi4_native():
     """
@@ -387,7 +388,7 @@ def test_work_queue():
     p = subprocess.Popen("$HOME/opt/cctools/bin/work_queue_worker localhost 56789 -t 1", shell=True)
     for _ in range(10):
         path = wq.check_finished_task_path()
-        if path != None:
+        if path is not None:
             assert path == os.getcwd()
             break
     wq.print_queue_status()
