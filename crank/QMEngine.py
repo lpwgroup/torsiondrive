@@ -9,7 +9,7 @@ def check_all_float(iterable):
     try:
         [float(i) for i in iterable]
         return True
-    except:
+    except ValueError:
         return False
 
 

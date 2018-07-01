@@ -262,11 +262,108 @@ def next_jobs_json_dict(next_jobs):
     return json_next_jobs
 
 
-def crank_api(json_dict, verbose=False):
-    current_state = current_state_json_load(json_dict)
+def next_jobs_from_state(crank_state, verbose=False):
+    """Creates a dictionary of the next jobs to run for Crank
+
+    Parameters
+    ----------
+    crank_state : dict
+        A dictionary description of the Crank state
+    verbose : bool, optional
+        Extra printing or not.
+
+    Returns
+    -------
+    dict
+        A dictionary of jobs to run.
+    """
+    current_state = current_state_json_load(crank_state)
     next_jobs = get_next_jobs(current_state, verbose=verbose)
     json_next_jobs = next_jobs_json_dict(next_jobs)
     return json_next_jobs
+
+
+### Utility functions for servers
+
+
+def create_initial_state(dihedrals, grid_spacing, elements, init_coords):
+    """Create the initial input dictionary for crank-api
+
+    Parameters
+    ----------
+    dihedrals : list of tuples
+        A list of the dihedrals to scan over.
+    grid_spacing : list of int
+        The grid seperation for each Crank dihedral
+    elements : list of strings
+        Symbols for all elements in the molecule
+    init_coords : list of (N, 3) or (N*3) arrays
+        The initial coordinates in bohr
+
+    Returns
+    -------
+    dict
+        A representation of the Crank state as JSON
+    """
+    return {
+        'dihedrals': dihedrals,
+        'grid_spacing': grid_spacing,
+        'elements': elements,
+        'init_coords': init_coords,
+        'grid_status': {}
+    }
+
+
+def collect_lowest_energies(crank_state):
+    """
+    Find the lowest energies for each dihedral grid from crank_state
+    """
+    lowest_energies = defaultdict(lambda: float('inf'))
+    for grid_id_str, job_result_tuple_list in crank_state['grid_status'].items():
+        grid_id = grid_id_from_string(grid_id_str)
+        for start_geo, end_geo, end_energy in job_result_tuple_list:
+            lowest_energies[grid_id] = min(lowest_energies[grid_id], end_energy)
+
+    # Must convert back to standard dictionary
+    return dict(lowest_energies)
+
+
+def update_state(crank_state, job_results):
+    """
+    Updates the crank state with the compute jobs. The state is updated inplace
+
+    Parameters
+    ----------
+    crank_state : dict
+        The current Crank state
+    job_results : dict
+        A dictionary of completed jobs and job ID's
+
+    Returns
+    -------
+    None
+    """
+    for grid_id_str, job_result_tuple_list in job_results.items():
+        if grid_id_str not in crank_state['grid_status']:
+            crank_state['grid_status'][grid_id_str] = []
+        crank_state['grid_status'][grid_id_str] += job_result_tuple_list
+    return crank_state
+
+
+def grid_id_from_string(grid_id_str):
+    """Convert
+
+    Parameters
+    ----------
+    grid_id_str : str
+        The string grid ID representation
+
+    Returns
+    -------
+    ret : tuple of ints
+        A 4-length tuple representation of the dihedral id
+    """
+    return tuple(int(i) for i in grid_id_str.split(','))
 
 
 def main():
@@ -283,7 +380,7 @@ def main():
     # Load json dictionary from file
     json_dict = json.load(open(args.statefile))
     # run the api
-    json_next_jobs = crank_api(json_dict, verbose=args.verbose)
+    json_next_jobs = next_jobs_from_state(json_dict, verbose=args.verbose)
     # dump results to file
     json.dump(json_next_jobs, open('next_jobs.json', 'w'), indent=2)
     print("Information for next set of jobs is dumped to next_jobs.json")

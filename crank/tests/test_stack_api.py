@@ -4,10 +4,9 @@ Unit and regression test for the crank package.
 
 import os, sys, collections, pytest
 import numpy as np
-from crank.crankAPI import crank_api
 import geometric
 from geometric.nifty import ang2bohr
-from crank import crankServerAPI
+from crank import crankAPI
 
 try:
     import qcengine
@@ -38,7 +37,7 @@ class SimpleServer:
         """
 
         # step 1
-        crank_state = crankServerAPI.create_initial_api_input(
+        crank_state = crankAPI.create_initial_state(
             dihedrals=self.dihedrals,
             grid_spacing=self.grid_spacing,
             elements=self.elements,
@@ -46,18 +45,18 @@ class SimpleServer:
 
         while True:
             # step 2
-            next_jobs = crank_api(crank_state, verbose=True)
+            next_jobs = crankAPI.next_jobs_from_state(crank_state, verbose=True)
 
             # step 3
             if len(next_jobs) == 0:
                 print("Crank Scan Finished")
-                return crankServerAPI.collect_lowest_energies(crank_state)
+                return crankAPI.collect_lowest_energies(crank_state)
 
             # step 4
             job_results = collections.defaultdict(list)
             for grid_id_str, job_geo_list in next_jobs.items():
                 for job_geo in job_geo_list:
-                    dihedral_values = crankServerAPI.gridIDStr_to_dihedralValues(grid_id_str)
+                    dihedral_values = crankAPI.grid_id_from_string(grid_id_str)
 
                     # Run geometric
                     geometric_input_dict = self.make_geomeTRIC_input(dihedral_values, job_geo)
@@ -72,7 +71,7 @@ class SimpleServer:
                     job_results[grid_id_str].append((job_geo, final_geo, final_energy))
 
             # step 5
-            crank_state = crankServerAPI.update_crank_state(crank_state, job_results)
+            crankAPI.update_state(crank_state, job_results)
 
     def make_geomeTRIC_input(self, dihedral_values, geometry):
         """ This function should be implemented on the server, that takes QM specs, geometry and constraint
