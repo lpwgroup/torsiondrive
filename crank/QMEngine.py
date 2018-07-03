@@ -1,12 +1,15 @@
+import os
+import subprocess
+
 import numpy as np
 from geometric.molecule import Molecule
-import os, subprocess, copy
+
 
 def check_all_float(iterable):
     try:
         [float(i) for i in iterable]
         return True
-    except:
+    except ValueError:
         return False
 
 
@@ -16,7 +19,7 @@ class QMEngine(object):
         self.work_queue = work_queue
         self.native_opt = native_opt
         self.rootpath = os.getcwd()
-        if input_file != None:
+        if input_file is not None:
             self.load_input(input_file)
         else:
             self.M = Molecule()
@@ -55,9 +58,9 @@ class QMEngine(object):
     def launch_optimize(self, job_path=None):
         """ launch an optimization job inside job_path """
         orig_dir = os.getcwd()
-        if job_path != None:
+        if job_path is not None:
             os.chdir(job_path)
-        if self.native_opt == True:
+        if self.native_opt:
             self.optimize_native()
         else:
             self.optimize_geomeTRIC()
@@ -69,18 +72,22 @@ class QMEngine(object):
         Return the Molecule object
         """
         orig_dir = os.getcwd()
-        if job_path != None:
+        if job_path is not None:
             os.chdir(job_path)
-        if self.native_opt == True:
+        if self.native_opt:
             m = self.load_native_output()
         else:
             m = self.load_geomeTRIC_output()
         os.chdir(orig_dir)
         return m
 
-    def run(self, cmd, input_files=[], output_files=[]):
+    def run(self, cmd, input_files=None, output_files=None):
         """ Execute a command locally or remotely, based on whether self.work_queue is set """
-        if self.work_queue == None:
+        if input_files is None:
+            input_files = []
+        if output_files is None:
+            output_files = []
+        if self.work_queue is None:
             subprocess.check_call(cmd, shell=True)
         else:
             self.work_queue.submit(cmd, input_files, output_files)
@@ -89,7 +96,7 @@ class QMEngine(object):
         """ Find finished jobs in job_path_set, return a set of job paths """
         assert wait_time > 0
         finished_path_set = set()
-        if self.work_queue == None:
+        if self.work_queue is None:
             # if running locally, all jobs must have finished already
             for path in running_job_path_id:
                 finished_path_set.add(path)
@@ -98,7 +105,7 @@ class QMEngine(object):
             for t in range(wait_time):
                 # check every second if a task finished in work_queue
                 taskpath = self.work_queue.check_finished_task_path(wait_time=1)
-                if taskpath != None:
+                if taskpath is not None:
                     taskpath = os.path.relpath(taskpath, self.rootpath)
                     assert taskpath in running_job_path_id, "Finished task path should be one of the running job paths"
                     finished_path_set.add(taskpath)
@@ -156,7 +163,7 @@ class EnginePsi4(QMEngine):
                 elif reading_molecule is True:
                     ls = line.split()
                     if len(ls) == 4 and check_all_float(ls[1:]):
-                        if found_geo == False:
+                        if not found_geo:
                             found_geo = True
                             psi4_temp.append("$!geometry@here")
                         # parse the xyz format
@@ -243,12 +250,12 @@ class EnginePsi4(QMEngine):
                     final_energy = float(line.split()[-1])
                 elif line.startswith('Final optimized geometry and variables'):
                     found_opt_result = True
-                elif found_opt_result == True:
+                elif found_opt_result:
                     ls = line.split()
                     if len(ls) == 4 and check_all_float(ls[1:]):
                         elems.append(ls[0])
                         coords.append(ls[1:4])
-        if final_energy == None:
+        if final_energy is None:
             raise RuntimeError("Final energy not found in %s" % filename)
         if len(elems) == 0 or len(coords) == 0:
             raise RuntimeError("Final geometry not found in %s" % filename)
@@ -290,10 +297,10 @@ class EngineQChem(QMEngine):
                 if line_sl.startswith("$molecule"):
                     reading_molecule = True
                     qchem_temp.append(line)
-                elif reading_molecule == True:
+                elif reading_molecule:
                     ls = line.split()
                     if len(ls) == 4 and check_all_float(ls[1:]):
-                        if found_geo == False:
+                        if not found_geo:
                             found_geo = True
                             qchem_temp.append("$!geometry@here")
                         elems.append(ls[0])

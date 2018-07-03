@@ -68,9 +68,10 @@ def test_qm_engine():
     assert engine.find_finished_jobs([], wait_time=1) == set()
     with pytest.raises(OSError):
         engine.load_task_result_m()
-    assert engine.optimize_native() == None
-    assert engine.optimize_geomeTRIC() == None
-    assert engine.load_native_output() == None
+    assert engine.optimize_native() is None
+    assert engine.optimize_geomeTRIC() is None
+    assert engine.load_native_output() is None
+
 
 def test_engine_psi4_native():
     """
@@ -364,15 +365,24 @@ def test_reproduce_api_example():
     os.chdir(example_path)
     if not os.path.isdir('api_example'):
         subprocess.call('tar zxf api_example.tar.gz', shell=True)
+
     os.chdir('api_example')
     argv = sys.argv[:]
     sys.argv = ['crank-api', 'current_state.json', '-v']
     shutil.copy('next_jobs.json', 'orig_next_jobs.json')
     crankAPI.main()
+
     sys.argv = argv
+
     assert filecmp.cmp('next_jobs.json', 'orig_next_jobs.json')
-    current_state = crankAPI.current_state_json_load(json.load(open('current_state.json')))
+
+    # Read the data from current_state
+    with open("current_state.json", "r") as handle:
+        data = json.load(handle)
+        current_state = crankAPI.current_state_json_load(data)
+
     crankAPI.current_state_json_dump(current_state, 'new_current_state.json')
+
     assert filecmp.cmp('current_state.json', 'new_current_state.json')
     os.chdir(example_path)
 
@@ -387,7 +397,7 @@ def test_work_queue():
     p = subprocess.Popen("$HOME/opt/cctools/bin/work_queue_worker localhost 56789 -t 1", shell=True)
     for _ in range(10):
         path = wq.check_finished_task_path()
-        if path != None:
+        if path is not None:
             assert path == os.getcwd()
             break
     wq.print_queue_status()

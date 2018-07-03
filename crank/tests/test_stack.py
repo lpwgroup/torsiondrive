@@ -13,8 +13,9 @@ from geometric.nifty import bohr2ang
 try:
     import qcengine
     import psi4
-except:
+except ImportError:
     pass
+
 
 class Psi4QCEngineEngine(QMEngine):
     def __init__(self, *args, **kwargs):
@@ -40,14 +41,14 @@ class Psi4QCEngineEngine(QMEngine):
         constraints_string = "$set\n"
         for d1, d2, d3, d4, v in self.dihedral_idx_values:
             # geomeTRIC use atomic index starting from 1
-            constraints_string += "dihedral %d %d %d %d %f\n" % (d1+1, d2+1, d3+1, d4+1, v)
+            constraints_string += "dihedral %d %d %d %d %f\n" % (d1 + 1, d2 + 1, d3 + 1, d4 + 1, v)
         qc_schema_input = {
             "schema_name": "qc_schema_input",
             "schema_version": 1,
             "molecule": {
-                "geometry": (self.M.xyzs[0]/bohr2ang).ravel().tolist(),
+                "geometry": (self.M.xyzs[0] / bohr2ang).ravel().tolist(),
                 "symbols": self.M.elem,
-                "connectivity": [[int(i), int(j), 1] for i,j in self.M.bonds]
+                "connectivity": [[int(i), int(j), 1] for i, j in self.M.bonds]
             },
             "driver": "gradient",
             "model": {
@@ -73,11 +74,12 @@ class Psi4QCEngineEngine(QMEngine):
         out_json_dict = self.stored_results.pop(os.getcwd())
         mdict = out_json_dict['final_molecule']
         m = Molecule()
-        m.xyzs = [np.array(mdict['molecule']['geometry']).reshape(-1,3) * bohr2ang]
+        m.xyzs = [np.array(mdict['molecule']['geometry']).reshape(-1, 3) * bohr2ang]
         m.elem = mdict['molecule']['symbols']
         m.build_topology()
         m.qm_energies = [mdict['properties']['return_energy']]
         return m
+
 
 @pytest.mark.skipif("qcengine" not in sys.modules, reason='qcengine not found')
 @pytest.mark.skipif("psi4" not in sys.modules, reason='psi4 not found')
@@ -90,13 +92,18 @@ def test_stack_psi4():
     test_folder = os.path.join(this_file_folder, 'files', 'hooh-psi4')
     os.chdir(test_folder)
     engine = Psi4QCEngineEngine('start.xyz')
-    scanner = DihedralScanner(engine, dihedrals=[[0,1,2,3]], grid_spacing=[30], verbose=True)
+    scanner = DihedralScanner(engine, dihedrals=[[0, 1, 2, 3]], grid_spacing=[30], verbose=True)
     scanner.master()
     result_energies = [scanner.grid_energies[grid_id] for grid_id in sorted(scanner.grid_energies.keys())]
-    assert np.allclose(result_energies, [-151.17383,-151.17416,-151.17455,-151.17477,-151.17455,-151.17367,-151.17199,
-        -151.16962,-151.16686,-151.16424,-151.16236,-151.16167,-151.16236,-151.16424,-151.16686,-151.16962,-151.17199,
-        -151.17367,-151.17455,-151.17477,-151.17455,-151.17416,-151.17383,-151.17370][1::2], atol=1e-4)
+    assert np.allclose(
+        result_energies, [
+            -151.17383, -151.17416, -151.17455, -151.17477, -151.17455, -151.17367, -151.17199, -151.16962, -151.16686,
+            -151.16424, -151.16236, -151.16167, -151.16236, -151.16424, -151.16686, -151.16962, -151.17199, -151.17367,
+            -151.17455, -151.17477, -151.17455, -151.17416, -151.17383, -151.17370
+        ][1::2],
+        atol=1e-4)
     os.chdir(orig_path)
+
 
 # We commented out the RDKit tests now since it has several issues
 # 1. The gradient is not good enough that geomeTRIC always struggle to find a good step

@@ -7,10 +7,19 @@
 #================================================#
 
 from __future__ import print_function, division
+
+import collections
+import copy
+import itertools
+import json
+import os
+import pickle
+import time
+
 import numpy as np
-import os, shutil, time, itertools, collections, json, copy, pickle
-from geometric.molecule import Molecule
 from crank.PriorityQueue import PriorityQueue
+from geometric.molecule import Molecule
+
 
 def normalize_dihedral(d):
     """ Normalize any number to the range (-180, 180], including 180 """
@@ -57,7 +66,7 @@ class DihedralScanner:
         self.opt_queue = PriorityQueue()
         # try to use init_coords_M first, if not given, use M in engine's template
         # `for m in init_coords_M` doesn't work since m.measure_dihedrals will fail because it has different m.xyzs shape
-        self.init_coords_M = [init_coords_M[i] for i in range(len(init_coords_M))] if init_coords_M != None else [self.engine.M]
+        self.init_coords_M = [init_coords_M[i] for i in range(len(init_coords_M))] if init_coords_M is not None else [self.engine.M]
         self.verbose = verbose
         # dictionary that stores the lowest energy for each grid point
         self.grid_energies = dict()
@@ -99,7 +108,7 @@ class DihedralScanner:
         If check_grid_id is given, will perform a check if the computed dihedral_values are close to the grid_id provided
         """
         dihedral_values = np.array([molecule.measure_dihedrals(*d)[0] for d in self.dihedrals])
-        if check_grid_id != None:
+        if check_grid_id is not None:
             assert len(check_grid_id) == len(dihedral_values), "Grid dimensions should be the same!"
             for dv, dref in zip(dihedral_values, check_grid_id):
                 diff = abs(dv - dref)

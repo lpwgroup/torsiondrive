@@ -105,3 +105,9 @@ ENV/
 
 # pytest
 .pytest_cache/
+
+# Test data
+crank/tests/files/
+Examples/api_example/
+Examples/hooh-1d/
+Examples/propanol-2d/

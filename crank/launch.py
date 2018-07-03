@@ -2,9 +2,11 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import print_function
-from geometric.molecule import Molecule
+
 from crank.DihedralScanner import DihedralScanner
 from crank.QMEngine import EnginePsi4, EngineQChem, EngineTerachem
+from geometric.molecule import Molecule
+
 
 def load_dihedralfile(dihedralfile):
     """
@@ -32,7 +34,7 @@ def create_engine(enginename, inputfile=None, work_queue_port=None, native_opt=F
     """
     engine_dict = {'psi4': EnginePsi4, 'qchem': EngineQChem, 'terachem':EngineTerachem}
     # initialize a work_queue
-    if work_queue_port != None:
+    if work_queue_port is not None:
         from crank.WQtools import WorkQueue
         work_queue = WorkQueue(work_queue_port)
     else:
