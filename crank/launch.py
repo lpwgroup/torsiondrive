@@ -8,23 +8,47 @@ from crank.QMEngine import EnginePsi4, EngineQChem, EngineTerachem
 from geometric.molecule import Molecule
 
 
-def load_dihedralfile(dihedralfile):
+def load_dihedralfile(dihedralfile, zero_based_numbering=False):
     """
     Load definition of dihedral from a text file, i.e. Loading the file
 
     # dihedral definition by atom indices starting from 0
-    # i     j      k     l
-      0     1      2     3
-      1     2      3     4
+    # i     j     k     j
+      1     2     3     4
+      2     3     4     5
 
     Will return dihedral_idxs = [(0,1,2,3), (1,2,3,4)]
+
+    If a comment line
+    #zero_based_numbering
+    is found at the beginning of the file, or
+    parameter zero_based_numbering == True
+    reading will become
+
+    # i     j     k     j
+      1     2     3     4
+      2     3     4     5
+
+    Returns dihedral_idxs = [(1,2,3,4), (2,3,4,5)]
+
     """
     dihedral_idxs = []
     with open(dihedralfile) as infile:
         for line in infile:
             line = line.strip()
-            if line[0] == '#': continue
-            dihedral_idxs.append([int(i) for i in line.split()])
+            if not line: continue
+            if line[0] == '#':
+                comment = line[1:].strip().lower()
+                if comment == 'zero_based_numbering':
+                    zero_based_numbering = True
+                elif comment == 'one_based_numbering':
+                    if zero_based_numbering == True:
+                        raise ValueError("Can not specify both zero_based_numbering and one_based_indexing.")
+                continue
+            if zero_based_numbering == False:
+                dihedral_idxs.append([int(i)-1 for i in line.split()])
+            else:
+                dihedral_idxs.append([int(i) for i in line.split()])
     return dihedral_idxs
 
 def create_engine(enginename, inputfile=None, work_queue_port=None, native_opt=False):
@@ -52,6 +76,7 @@ def main():
     parser.add_argument('-e', '--engine', type=str, default="psi4", choices=['qchem', 'psi4', 'terachem'], help='Engine for running scan')
     parser.add_argument('--native_opt', action='store_true', default=False, help='Use QM program native constrained optimization algorithm. This will turn off geomeTRIC package.')
     parser.add_argument('--wq_port', type=int, default=None, help='Specify port number to use Work Queue to distribute optimization jobs.')
+    parser.add_argument('--zero_based_numbering', action='store_true', help='Use zero_based_numbering in dihedrals file.')
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help='Print more information while running.')
     args = parser.parse_args()
 
@@ -59,7 +84,7 @@ def main():
     print(' '.join(sys.argv))
 
     # parse the dihedral file
-    dihedral_idxs = load_dihedralfile(args.dihedralfile)
+    dihedral_idxs = load_dihedralfile(args.dihedralfile, args.zero_based_numbering)
     grid_dim = len(dihedral_idxs)
 
     # format grid spacing

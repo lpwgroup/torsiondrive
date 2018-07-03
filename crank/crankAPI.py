@@ -193,6 +193,8 @@ def get_next_jobs(current_state, verbose=False):
 def current_state_json_dump(current_state, jsonfilename):
     """ Dump a state to a JSON file """
     json_state = current_state.copy()
+    # convert 0 based numbering to 1 based
+    json_state['dihedrals'] = [[i+1 for i in d] for d in current_state['dihedrals']]
     json_state['init_coords'] = [(c * ang2bohr).ravel().tolist() for c in current_state['init_coords']]
     json_state['grid_status'] = dict()
 
@@ -227,9 +229,11 @@ def current_state_json_load(json_state_dict):
     m.elem = json_state['elements']
     m.build_bonds()
 
-    # Scane over grid states
-    dihedrals = json_state['dihedrals']
+    # convert 1 based indexing to 0
+    dihedrals = [[i-1 for i in d] for d in json_state['dihedrals']]
+    json_state['dihedrals'] = dihedrals
     grid_spacing = json_state['grid_spacing']
+    # create grid status dictionary
     for grid_id_str, grid_jobs in json_state['grid_status'].items():
         grid_id = tuple(int(i) for i in grid_id_str.split(','))
         for start_geo, end_geo, end_energy in grid_jobs:

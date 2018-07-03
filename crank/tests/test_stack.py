@@ -38,10 +38,9 @@ class Psi4QCEngineEngine(QMEngine):
         self.stored_results[key] = geometric.run_json.geometric_run_json(in_json_dict)
 
     def create_in_json_dict(self):
-        constraints_string = "$set\n"
-        for d1, d2, d3, d4, v in self.dihedral_idx_values:
-            # geomeTRIC use atomic index starting from 1
-            constraints_string += "dihedral %d %d %d %d %f\n" % (d1 + 1, d2 + 1, d3 + 1, d4 + 1, v)
+        constraints_dict = {
+                'set': [('dihedral', str(d1), str(d2), str(d3), str(d4), str(v)) for d1, d2, d3, d4, v in self.dihedral_idx_values]
+            }
         qc_schema_input = {
             "schema_name": "qc_schema_input",
             "schema_version": 1,
@@ -62,7 +61,7 @@ class Psi4QCEngineEngine(QMEngine):
             "schema_version": 1,
             "keywords": {
                 "coordsys": "tric",
-                'constraints': constraints_string,
+                'constraints': constraints_dict,
                 "program": "psi4"
             },
             "input_specification": qc_schema_input
