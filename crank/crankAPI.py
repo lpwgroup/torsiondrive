@@ -173,6 +173,11 @@ def get_next_jobs(current_state, verbose=False):
     # run the scanner until some calculation is not found in cache
     scanner.repeat_scan_process()
 
+    # Clean up the tmp folder
+    opt_tmp = scanner.tmp_folder_name
+    if os.path.isdir(opt_tmp):
+        shutil.rmtree(opt_tmp)
+
     # save the new jobs from scanner
     next_jobs = defaultdict(list)
 
