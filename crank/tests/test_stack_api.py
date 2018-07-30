@@ -77,7 +77,7 @@ class SimpleServer:
         """ This function should be implemented on the server, that takes QM specs, geometry and constraint
         to generate a geomeTRIC json input dictionary"""
         constraints_dict = {
-            'set': [('dihedral', str(d1), str(d2), str(d3), str(d4), str(v)) for (d1, d2, d3, d4), v in zip(self.dihedrals, dihedral_values)]
+            'set': [('dihedral', str(d1+1), str(d2+1), str(d3+1), str(d4+1), str(v)) for (d1, d2, d3, d4), v in zip(self.dihedrals, dihedral_values)]
         }
         qc_schema_input = {
             "schema_name": "qc_schema_input",
@@ -120,7 +120,7 @@ def test_stack_simpleserver():
     test_folder = os.path.join(this_file_folder, 'files', 'hooh-simpleserver')
     os.chdir(test_folder)
 
-    simpleServer = SimpleServer('start.xyz', dihedrals=[[1, 2, 3, 4]], grid_spacing=[60])
+    simpleServer = SimpleServer('start.xyz', dihedrals=[[0, 1, 2, 3]], grid_spacing=[60])
     lowest_energies = simpleServer.run_crank_scan()
 
     result_energies = [lowest_energies[grid_id] for grid_id in sorted(lowest_energies.keys())]

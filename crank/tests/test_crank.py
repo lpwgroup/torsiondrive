@@ -365,24 +365,16 @@ def test_reproduce_api_example():
     os.chdir(example_path)
     if not os.path.isdir('api_example'):
         subprocess.call('tar zxf api_example.tar.gz', shell=True)
-
+    # test running api
     os.chdir('api_example')
-    argv = sys.argv[:]
-    sys.argv = ['crank-api', 'current_state.json', '-v']
-    shutil.copy('next_jobs.json', 'orig_next_jobs.json')
-    crankAPI.main()
-
-    sys.argv = argv
-
-    assert filecmp.cmp('next_jobs.json', 'orig_next_jobs.json')
-
-    # Read the data from current_state
-    with open("current_state.json", "r") as handle:
-        data = json.load(handle)
-        current_state = crankAPI.current_state_json_load(data)
-
-    crankAPI.current_state_json_dump(current_state, 'new_current_state.json')
-
+    orig_next_jobs = json.load(open('next_jobs.json'))
+    current_state = json.load(open('current_state.json'))
+    next_jobs = crankAPI.next_jobs_from_state(current_state, verbose=True)
+    for grid_id, jobs in orig_next_jobs.items():
+        assert np.allclose(jobs, next_jobs.get(grid_id, 0))
+    # test writing current state
+    loaded_state = crankAPI.current_state_json_load(current_state)
+    crankAPI.current_state_json_dump(loaded_state, 'new_current_state.json')
     assert filecmp.cmp('current_state.json', 'new_current_state.json')
     os.chdir(example_path)
 

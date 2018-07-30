@@ -111,3 +111,7 @@ crank/tests/files/
 Examples/api_example/
 Examples/hooh-1d/
 Examples/propanol-2d/
+
+# output files
+*.out
+*.dat
