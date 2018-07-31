@@ -434,8 +434,8 @@ class DihedralScanner:
 
     def draw_ascii_image(self):
         """ Return a string with ASCII colors showing current running status """
-        if not hasattr(self, 'grid_energies') or not hasattr(self, 'running_job_path_info'):
-            return "draw_ascii_image failed: grid_energies or running_job_path_info not available"
+        if not hasattr(self, 'grid_energies'):
+            return "draw_ascii_image failed: grid_energies not available"
         result_str = ""
         count = 0
         running_to_job_ids = set(to_grid_id for m, from_grid_id, to_grid_id in self.opt_queue)
