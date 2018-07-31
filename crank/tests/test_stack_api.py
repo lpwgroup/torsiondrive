@@ -63,8 +63,9 @@ class SimpleServer:
                     geometric_output_dict = geometric.run_json.geometric_run_json(geometric_input_dict)
 
                     # Pull out relevevant data
-                    final_geo = geometric_output_dict['final_molecule']['molecule']['geometry']
-                    final_energy = geometric_output_dict['final_molecule']['properties']['return_energy']
+                    final_result = geometric_output_dict['trajectory'][-1]
+                    final_geo = final_result['molecule']['geometry']
+                    final_energy = final_result['properties']['return_energy']
 
                     # Note: the results should be appended in the same order as in the inputs
                     # It's not a problem here when running serial for loop
@@ -82,10 +83,6 @@ class SimpleServer:
         qc_schema_input = {
             "schema_name": "qc_schema_input",
             "schema_version": 1,
-            "molecule": {
-                "geometry": geometry,
-                "symbols": self.elements
-            },
             "driver": "gradient",
             "model": {
                 "method": "SCF",
@@ -101,6 +98,10 @@ class SimpleServer:
                 "coordsys": "tric",
                 'constraints': constraints_dict,
                 "program": "psi4"
+            },
+            "initial_molecule": {
+                "geometry": geometry,
+                "symbols": self.elements
             },
             "input_specification": qc_schema_input
         }
