@@ -33,7 +33,7 @@ install:
   - python setup.py develop --no-deps
 
     # Print versions
-  - python -c "impot prt geometric; print(geometric.__version__)"
+  - python -c "import geometric; print(geometric.__version__)"
 
 script:
   - travis_wait 100 pytest -v --cov=crank crank/tests/
