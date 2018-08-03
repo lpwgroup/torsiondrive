@@ -30,7 +30,10 @@ install:
 
     # Build and install package
   - bash devtools/travis-ci/install-cctools-62.sh
-  - python setup.py install
+  - python setup.py develop --no-deps
+
+    # Print versions
+  - python -c "import geometric; print(geometric.__version__)"
 
 script:
   - travis_wait 100 pytest -v --cov=crank crank/tests/

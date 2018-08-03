@@ -27,9 +27,8 @@ export PIP_ARGS="-U"
 export PATH=$MINICONDA_HOME/bin:$PATH
     
 conda config --add channels conda-forge
-    
-conda install --yes conda conda-build jinja2 anaconda-client
-conda update --quiet --yes --all
+conda config --set always_yes yes --set changeps1 no
+conda update --q conda
 
 # Restore original directory
 popd

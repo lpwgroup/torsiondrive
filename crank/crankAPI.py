@@ -360,15 +360,20 @@ def main():
     parser.add_argument(
         '-v', '--verbose', action='store_true', default=False, help='Print more information while running.')
     args = parser.parse_args()
+
     # print input command for reproducibility
     print(' '.join(sys.argv))
+
     # Load json dictionary from file
     json_dict = json.load(open(args.statefile))
+
     # run the api
     json_next_jobs = next_jobs_from_state(json_dict, verbose=args.verbose)
+
     # dump results to file
     json.dump(json_next_jobs, open('next_jobs.json', 'w'), indent=2)
     print("Information for next set of jobs is dumped to next_jobs.json")
+
     # print results
     if len(json_next_jobs) > 0:
         print("Number of jobs to run next for each grid id")
