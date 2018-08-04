@@ -289,8 +289,7 @@ def test_reproduce_1D_examples():
     this_file_folder = os.path.dirname(os.path.realpath(__file__))
     example_path = os.path.join(this_file_folder, '..', '..', 'Examples')
     os.chdir(example_path)
-    if not os.path.isdir('hooh-1d'):
-        subprocess.call('tar zxf hooh-1d.tar.gz', shell=True)
+    subprocess.call('tar zxf hooh-1d.tar.gz ', shell=True)
     # reproduce psi4 local geomeTRIC
     os.chdir('hooh-1d/psi4/run_local/geomeTRIC')
     shutil.copy('scan.xyz', 'orig_scan.xyz')
@@ -335,8 +334,7 @@ def test_reproduce_2D_example():
     this_file_folder = os.path.dirname(os.path.realpath(__file__))
     example_path = os.path.join(this_file_folder, '..', '..', 'Examples')
     os.chdir(example_path)
-    if not os.path.isdir('propanol-2d'):
-        subprocess.call('tar zxf propanol-2d.tar.gz', shell=True)
+    subprocess.call('tar zxf propanol-2d.tar.gz', shell=True)
     # reproduce qchem work_queue geomeTRIC
     os.chdir('propanol-2d/work_queue_qchem_geomeTRIC')
     shutil.copy('scan.xyz', 'orig_scan.xyz')
@@ -363,8 +361,7 @@ def test_reproduce_api_example():
     this_file_folder = os.path.dirname(os.path.realpath(__file__))
     example_path = os.path.join(this_file_folder, '..', '..', 'Examples')
     os.chdir(example_path)
-    if not os.path.isdir('api_example'):
-        subprocess.call('tar zxf api_example.tar.gz', shell=True)
+    subprocess.call('tar zxf api_example.tar.gz', shell=True)
     # test running api
     os.chdir('api_example')
     orig_next_jobs = json.load(open('next_jobs.json'))
