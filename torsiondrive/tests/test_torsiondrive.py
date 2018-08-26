@@ -1,17 +1,17 @@
 """
-Unit and regression test for the crank package.
+Unit and regression test for the torsiondrive package.
 """
 
 import pytest
 import os, sys, subprocess, filecmp, shutil, json
 import numpy as np
-from crank.DihedralScanner import DihedralScanner, Molecule
-from crank.QMEngine import QMEngine, EnginePsi4, EngineQChem, EngineTerachem
-from crank.PriorityQueue import PriorityQueue
+from torsiondrive.dihedral_scanner import DihedralScanner, Molecule
+from torsiondrive.qm_engine import QMEngine, EnginePsi4, EngineQChem, EngineTerachem
+from torsiondrive.priority_queue import PriorityQueue
 
-def test_crank_imported():
-    """Sample test, will always pass so long as import statement worked"""
-    assert "crank" in sys.modules
+def test_torsiondrive_imported():
+    """Simple test, will always pass so long as import statement worked"""
+    assert "torsiondrive" in sys.modules
 
 def test_dihedral_scanner_setup():
     """
@@ -54,7 +54,7 @@ def test_qm_engine():
     """
     Testing QMEngine Class
     """
-    from crank.QMEngine import check_all_float
+    from torsiondrive.qm_engine import check_all_float
     assert check_all_float([1,0.2,3]) == True
     assert check_all_float([1,'a']) == False
     engine = QMEngine()
@@ -285,7 +285,7 @@ def test_reproduce_1D_examples():
     """
     Testing Reproducing Examples/hooh-1d
     """
-    from crank import launch
+    from torsiondrive import launch
     this_file_folder = os.path.dirname(os.path.realpath(__file__))
     example_path = os.path.join(this_file_folder, '..', '..', 'Examples')
     os.chdir(example_path)
@@ -330,7 +330,7 @@ def test_reproduce_2D_example():
     """
     Testing Reproducing Examples/propanol-2d
     """
-    from crank import launch
+    from torsiondrive import launch
     this_file_folder = os.path.dirname(os.path.realpath(__file__))
     example_path = os.path.join(this_file_folder, '..', '..', 'Examples')
     os.chdir(example_path)
@@ -339,7 +339,7 @@ def test_reproduce_2D_example():
     os.chdir('propanol-2d/work_queue_qchem_geomeTRIC')
     shutil.copy('scan.xyz', 'orig_scan.xyz')
     argv = sys.argv[:]
-    sys.argv = 'crank-launch qc.in dihedrals.txt -e qchem -g 15 --zero_based_numbering -v'.split()
+    sys.argv = 'td-launch qc.in dihedrals.txt -e qchem -g 15 --zero_based_numbering -v'.split()
     launch.main()
     assert filecmp.cmp('scan.xyz', 'orig_scan.xyz')
     os.chdir(example_path)
@@ -347,7 +347,7 @@ def test_reproduce_2D_example():
     os.chdir('propanol-2d/work_queue_qchem_native_opt')
     shutil.copy('scan.xyz', 'orig_scan.xyz')
     shutil.copy('scan.xyz', 'orig_scan.xyz')
-    sys.argv = 'crank-launch qc.in dihedrals.txt -e qchem -g 15 --native_opt --zero_based_numbering -v'.split()
+    sys.argv = 'td-launch qc.in dihedrals.txt -e qchem -g 15 --native_opt --zero_based_numbering -v'.split()
     launch.main()
     sys.argv = argv
     assert filecmp.cmp('scan.xyz', 'orig_scan.xyz')
@@ -357,7 +357,7 @@ def test_reproduce_api_example():
     """
     Testing Reproducing Examples/api_example
     """
-    from crank import crankAPI
+    from torsiondrive import td_api
     this_file_folder = os.path.dirname(os.path.realpath(__file__))
     example_path = os.path.join(this_file_folder, '..', '..', 'Examples')
     os.chdir(example_path)
@@ -366,18 +366,18 @@ def test_reproduce_api_example():
     os.chdir('api_example')
     orig_next_jobs = json.load(open('next_jobs.json'))
     current_state = json.load(open('current_state.json'))
-    next_jobs = crankAPI.next_jobs_from_state(current_state, verbose=True)
+    next_jobs = td_api.next_jobs_from_state(current_state, verbose=True)
     for grid_id, jobs in orig_next_jobs.items():
         assert np.allclose(jobs, next_jobs.get(grid_id, 0))
     # test writing current state
-    loaded_state = crankAPI.current_state_json_load(current_state)
-    crankAPI.current_state_json_dump(loaded_state, 'new_current_state.json')
+    loaded_state = td_api.current_state_json_load(current_state)
+    td_api.current_state_json_dump(loaded_state, 'new_current_state.json')
     assert filecmp.cmp('current_state.json', 'new_current_state.json')
     os.chdir(example_path)
 
 @pytest.mark.skipif("work_queue" not in sys.modules, reason='work_queue not found')
 def test_work_queue():
-    from crank.WQtools import WorkQueue
+    from torsiondrive.wq_tools import WorkQueue
     import time
     wq = WorkQueue(56789)
     wq.submit('echo test > test.txt', [], ['test.txt'])

@@ -10,15 +10,15 @@ import shutil
 from collections import defaultdict
 
 import numpy as np
-from crank.DihedralScanner import DihedralScanner, get_geo_key
-from crank.PriorityQueue import PriorityQueue
-from crank.QMEngine import QMEngine
+from torsiondrive.dihedral_scanner import DihedralScanner, get_geo_key
+from torsiondrive.priority_queue import PriorityQueue
+from torsiondrive.qm_engine import QMEngine
 from geometric.molecule import Molecule
 from geometric.nifty import bohr2ang, ang2bohr
 
 class DihedralScanRepeater(DihedralScanner):
     """ Child class of dihedral scanner, that is specifically designed to accommodate
-    the requirements of crank-API"""
+    the requirements of torsiondrive-API"""
     def repeat_scan_process(self):
         """ Mimicing DihedralScanner.master function, but stops when new jobs needs to run """
         self.push_initial_opt_tasks()
@@ -123,7 +123,7 @@ class DihedralScanRepeater(DihedralScanner):
                 grid_id = self.get_dihedral_id(result_m, check_grid_id=to_grid_id)
                 self.current_finished_job_results.push((result_m, grid_id), priority=job_folder)
             else:
-                # append the job to self.next_jobs, which is the output of crank-API
+                # append the job to self.next_jobs, which is the output of torsiondrive-API
                 self.next_jobs[to_grid_id].append(m.xyzs[0].copy())
 
 
@@ -243,14 +243,14 @@ def next_jobs_json_dict(next_jobs):
     return json_next_jobs
 
 
-def next_jobs_from_state(crank_state, verbose=False):
-    """ The main function of crank API, which takes a crank state in JSON dictionary,
+def next_jobs_from_state(td_state, verbose=False):
+    """ The main function of torsiondrive API, which takes a torsiondrive state in JSON dictionary,
     and returns a JSON dictionary with information of next jobs.
 
     Parameters
     ----------
-    crank_state : dict
-        A dictionary description of the Crank state
+    td_state : dict
+        A dictionary description of the torsiondrive state
     verbose : bool, optional
         Extra printing or not.
 
@@ -258,9 +258,9 @@ def next_jobs_from_state(crank_state, verbose=False):
     -------
     dict
         A dictionary of jobs to run.
-        If the entire crank scan has finished, will return an empty dictionary
+        If the entire torsiondrive scan has finished, will return an empty dictionary
     """
-    current_state = current_state_json_load(crank_state)
+    current_state = current_state_json_load(td_state)
     next_jobs = get_next_jobs(current_state, verbose=verbose)
     json_next_jobs = next_jobs_json_dict(next_jobs)
     return json_next_jobs
@@ -270,14 +270,14 @@ def next_jobs_from_state(crank_state, verbose=False):
 
 
 def create_initial_state(dihedrals, grid_spacing, elements, init_coords):
-    """Create the initial input dictionary for crank-api
+    """Create the initial input dictionary for torsiondrive API
 
     Parameters
     ----------
     dihedrals : list of tuples
         A list of the dihedrals to scan over.
     grid_spacing : list of int
-        The grid seperation for each Crank dihedral
+        The grid seperation for each dihedral angle
     elements : list of strings
         Symbols for all elements in the molecule
     init_coords : list of (N, 3) or (N*3) arrays
@@ -286,7 +286,7 @@ def create_initial_state(dihedrals, grid_spacing, elements, init_coords):
     Returns
     -------
     dict
-        A representation of the Crank state as JSON
+        A representation of the torsiondrive state as JSON
     """
     return {
         'dihedrals': dihedrals,
@@ -297,12 +297,12 @@ def create_initial_state(dihedrals, grid_spacing, elements, init_coords):
     }
 
 
-def collect_lowest_energies(crank_state):
+def collect_lowest_energies(td_state):
     """
-    Find the lowest energies for each dihedral grid from crank_state
+    Find the lowest energies for each dihedral grid from td_state
     """
     lowest_energies = defaultdict(lambda: float('inf'))
-    for grid_id_str, job_result_tuple_list in crank_state['grid_status'].items():
+    for grid_id_str, job_result_tuple_list in td_state['grid_status'].items():
         grid_id = grid_id_from_string(grid_id_str)
         for start_geo, end_geo, end_energy in job_result_tuple_list:
             lowest_energies[grid_id] = min(lowest_energies[grid_id], end_energy)
@@ -311,14 +311,14 @@ def collect_lowest_energies(crank_state):
     return dict(lowest_energies)
 
 
-def update_state(crank_state, job_results):
+def update_state(td_state, job_results):
     """
-    Updates the crank state with the compute jobs. The state is updated inplace
+    Updates the torsiondrive state with the compute jobs. The state is updated inplace
 
     Parameters
     ----------
-    crank_state : dict
-        The current Crank state
+    td_state : dict
+        The current torsiondrive state
     job_results : dict
         A dictionary of completed jobs and job ID's
 
@@ -327,10 +327,10 @@ def update_state(crank_state, job_results):
     None
     """
     for grid_id_str, job_result_tuple_list in job_results.items():
-        if grid_id_str not in crank_state['grid_status']:
-            crank_state['grid_status'][grid_id_str] = []
-        crank_state['grid_status'][grid_id_str] += job_result_tuple_list
-    return crank_state
+        if grid_id_str not in td_state['grid_status']:
+            td_state['grid_status'][grid_id_str] = []
+        td_state['grid_status'][grid_id_str] += job_result_tuple_list
+    return td_state
 
 
 def grid_id_from_string(grid_id_str):
@@ -380,7 +380,7 @@ def main():
         for grid_id in json_next_jobs.keys():
             print("%-20s %10d" % (str(grid_id), len(json_next_jobs[grid_id])))
     else:
-        print("All crank jobs finished.")
+        print("All torsiondrive jobs finished.")
 
 
 if __name__ == "__main__":

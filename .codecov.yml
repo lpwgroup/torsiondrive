@@ -1,6 +1,6 @@
 coverage:
   ignore:
-    - crank/tests/.*
+    - torsiondrive/tests/.*
     - setup.py
   status:
     patch: false
