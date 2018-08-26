@@ -283,11 +283,11 @@ def test_engine_terachem_geometric():
 
 def test_reproduce_1D_examples():
     """
-    Testing Reproducing Examples/hooh-1d
+    Testing Reproducing examples/hooh-1d
     """
     from torsiondrive import launch
     this_file_folder = os.path.dirname(os.path.realpath(__file__))
-    example_path = os.path.join(this_file_folder, '..', '..', 'Examples')
+    example_path = os.path.join(this_file_folder, '..', '..', 'examples')
     os.chdir(example_path)
     subprocess.call('tar zxf hooh-1d.tar.gz ', shell=True)
     # reproduce psi4 local geomeTRIC
@@ -328,11 +328,11 @@ def test_reproduce_1D_examples():
 
 def test_reproduce_2D_example():
     """
-    Testing Reproducing Examples/propanol-2d
+    Testing Reproducing examples/propanol-2d
     """
     from torsiondrive import launch
     this_file_folder = os.path.dirname(os.path.realpath(__file__))
-    example_path = os.path.join(this_file_folder, '..', '..', 'Examples')
+    example_path = os.path.join(this_file_folder, '..', '..', 'examples')
     os.chdir(example_path)
     subprocess.call('tar zxf propanol-2d.tar.gz', shell=True)
     # reproduce qchem work_queue geomeTRIC
@@ -355,11 +355,11 @@ def test_reproduce_2D_example():
 
 def test_reproduce_api_example():
     """
-    Testing Reproducing Examples/api_example
+    Testing Reproducing examples/api_example
     """
     from torsiondrive import td_api
     this_file_folder = os.path.dirname(os.path.realpath(__file__))
-    example_path = os.path.join(this_file_folder, '..', '..', 'Examples')
+    example_path = os.path.join(this_file_folder, '..', '..', 'examples')
     os.chdir(example_path)
     subprocess.call('tar zxf api_example.tar.gz', shell=True)
     # test running api
