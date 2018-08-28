@@ -1,5 +1,5 @@
 """
-Base import for the crank module.
+Base import for the torsiondrive module.
 """
 
 from ._version import get_versions as _get_versions

@@ -8,14 +8,14 @@ environment:
     - PYTHON: "C:\\Miniconda36-x64"
       PYTHON_VERSION: "3.6"
       PYTHON_ARCH: "64"
-  
+
 
 install:
   - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
-  
+
     # Add conda-forge channel
   - conda config --add channels conda-forge
-  
+
     # Try to update conda first to avoid odd dependency clashes
   - conda update --yes --all
   - conda install --yes conda-build
@@ -23,15 +23,15 @@ install:
     # Create test environment for package
   - conda create --yes -n test python=%PYTHON_VERSION% pip pytest pytest-cov
   - activate test
-    
+
     # Install any pip only modules
   - pip install codecov
 
     # Build and install package
   - conda build --quiet --python=%PYTHON_VERSION% devtools\\conda-recipe
-  - conda install --yes --use-local crank
-  
+  - conda install --yes --use-local torsiondrive
+
 build: false
 
 test_script:
-  - pytest -v --cov=crank crank\\tests
+  - pytest -v --cov=torsiondrive torsiondrive\\tests

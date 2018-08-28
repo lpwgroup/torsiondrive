@@ -107,10 +107,10 @@ ENV/
 .pytest_cache/
 
 # Test data
-crank/tests/files/
-Examples/api_example/
-Examples/hooh-1d/
-Examples/propanol-2d/
+torsiondrive/tests/files/
+examples/api_example/
+examples/hooh-1d/
+examples/propanol-2d/
 
 # output files
 *.out

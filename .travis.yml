@@ -36,7 +36,7 @@ install:
   - python -c "import geometric; print(geometric.__version__)"
 
 script:
-  - travis_wait 100 pytest -v --cov=crank crank/tests/
+  - travis_wait 100 pytest -v --cov=torsiondrive torsiondrive/tests/
 
 notifications:
     email: false

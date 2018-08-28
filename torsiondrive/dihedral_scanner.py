@@ -17,8 +17,8 @@ import pickle
 import time
 
 import numpy as np
-from crank.PriorityQueue import PriorityQueue
 from geometric.molecule import Molecule
+from torsiondrive.priority_queue import PriorityQueue
 
 
 def normalize_dihedral(d):

@@ -1,7 +1,7 @@
-crank
+torsiondrive
 ==============================
-[![Travis Build Status](https://travis-ci.org/lpwgroup/crank.png)](https://travis-ci.org/lpwgroup/crank)
-[![codecov](https://codecov.io/gh/lpwgroup/crank/branch/master/graph/badge.svg)](https://codecov.io/gh/lpwgroup/crank/branch/master)
+[![Travis Build Status](https://travis-ci.org/lpwgroup/torsiondrive.png)](https://travis-ci.org/lpwgroup/torsiondrive)
+[![codecov](https://codecov.io/gh/lpwgroup/torsiondrive/branch/master/graph/badge.svg)](https://codecov.io/gh/lpwgroup/torsiondrive/branch/master)
 
 Dihedral scanner with wavefront propagation
 
@@ -17,10 +17,10 @@ Dihedral scanner with wavefront propagation
 `python setup.py install`
 
 ## Run
-`crank-launch <InputFile> <Dihedrals.txt> --init_coords <init_coords.xyz> -g <grid_spacing> -e <Engine> (--native_opt) (--wq_port XXX) (-v) > scan.log`
+`torsiondrive-launch <InputFile> <Dihedrals.txt> --init_coords <init_coords.xyz> -g <grid_spacing> -e <Engine> (--native_opt) (--wq_port XXX) (-v) > scan.log`
 
 ## API call
-`crank-api current_state.json`
+`torsiondrive-api current_state.json`
 
 ### Input Parameters:
 

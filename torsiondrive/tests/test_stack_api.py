@@ -1,12 +1,13 @@
 """
-Unit and regression test for the crank package.
+Unit and regression test for the torsiondrive package.
+Test the stack of (server <=> td_api) -> geomeTRIC -> qcengine -> Psi4
 """
 
 import os, sys, collections, pytest
 import numpy as np
 import geometric
 from geometric.nifty import ang2bohr
-from crank import crankAPI
+from torsiondrive import td_api
 
 try:
     import qcengine
@@ -16,7 +17,7 @@ except ImportError:
 
 
 class SimpleServer:
-    """ A simple server that interfaces with crank and geometric to do the dihedral scanning work flow """
+    """ A simple server that interfaces with torsiondrive and geometric to do the dihedral scanning work flow """
 
     def __init__(self, xyzfilename, dihedrals, grid_spacing):
         self.M = geometric.molecule.Molecule(xyzfilename)
@@ -25,11 +26,11 @@ class SimpleServer:
         self.elements = self.M.elem
         self.init_coords = [(self.M.xyzs[0] * ang2bohr).ravel().tolist()]
 
-    def run_crank_scan(self):
+    def run_torsiondrive_scan(self):
         """
-        Run crank scan in the following steps:
-        1. Create json input for crank
-        2. Send the json input dictionary to crankAPI.crank_api(), get the next set of jobs
+        Run torsiondrive scan in the following steps:
+        1. Create json input for torsiondrive
+        2. Send the json input dictionary to td_api.next_jobs_from_state(), get the next set of jobs
         3. If there are no jobs needed, finish and return the lowest energy on each dihedral grid
         4. If there are new jobs, run them with geomeTRIC.run_json.
         5. Collect the results and put them into new json input dictionary
@@ -37,7 +38,7 @@ class SimpleServer:
         """
 
         # step 1
-        crank_state = crankAPI.create_initial_state(
+        td_state = td_api.create_initial_state(
             dihedrals=self.dihedrals,
             grid_spacing=self.grid_spacing,
             elements=self.elements,
@@ -45,18 +46,18 @@ class SimpleServer:
 
         while True:
             # step 2
-            next_jobs = crankAPI.next_jobs_from_state(crank_state, verbose=True)
+            next_jobs = td_api.next_jobs_from_state(td_state, verbose=True)
 
             # step 3
             if len(next_jobs) == 0:
-                print("Crank Scan Finished")
-                return crankAPI.collect_lowest_energies(crank_state)
+                print("torsiondrive Scan Finished")
+                return td_api.collect_lowest_energies(td_state)
 
             # step 4
             job_results = collections.defaultdict(list)
             for grid_id_str, job_geo_list in next_jobs.items():
                 for job_geo in job_geo_list:
-                    dihedral_values = crankAPI.grid_id_from_string(grid_id_str)
+                    dihedral_values = td_api.grid_id_from_string(grid_id_str)
 
                     # Run geometric
                     geometric_input_dict = self.make_geomeTRIC_input(dihedral_values, job_geo)
@@ -72,7 +73,7 @@ class SimpleServer:
                     job_results[grid_id_str].append((job_geo, final_geo, final_energy))
 
             # step 5
-            crankAPI.update_state(crank_state, job_results)
+            td_api.update_state(td_state, job_results)
 
     def make_geomeTRIC_input(self, dihedral_values, geometry):
         """ This function should be implemented on the server, that takes QM specs, geometry and constraint
@@ -113,7 +114,7 @@ class SimpleServer:
 @pytest.mark.skipif("psi4" not in sys.modules, reason='psi4 not found')
 def test_stack_simpleserver():
     """
-    Test the stack of crank -> geomeTRIC -> qcengine -> Psi4
+    Test the stack of (server <=> td_api) -> geomeTRIC -> qcengine -> Psi4
     """
     orig_path = os.getcwd()
 
@@ -122,7 +123,7 @@ def test_stack_simpleserver():
     os.chdir(test_folder)
 
     simpleServer = SimpleServer('start.xyz', dihedrals=[[0, 1, 2, 3]], grid_spacing=[60])
-    lowest_energies = simpleServer.run_crank_scan()
+    lowest_energies = simpleServer.run_torsiondrive_scan()
 
     result_energies = [lowest_energies[grid_id] for grid_id in sorted(lowest_energies.keys())]
     assert np.allclose(
