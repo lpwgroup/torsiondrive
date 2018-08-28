@@ -339,7 +339,7 @@ def test_reproduce_2D_example():
     os.chdir('propanol-2d/work_queue_qchem_geomeTRIC')
     shutil.copy('scan.xyz', 'orig_scan.xyz')
     argv = sys.argv[:]
-    sys.argv = 'td-launch qc.in dihedrals.txt -e qchem -g 15 --zero_based_numbering -v'.split()
+    sys.argv = 'torsiondrive-launch qc.in dihedrals.txt -e qchem -g 15 --zero_based_numbering -v'.split()
     launch.main()
     assert filecmp.cmp('scan.xyz', 'orig_scan.xyz')
     os.chdir(example_path)
@@ -347,7 +347,7 @@ def test_reproduce_2D_example():
     os.chdir('propanol-2d/work_queue_qchem_native_opt')
     shutil.copy('scan.xyz', 'orig_scan.xyz')
     shutil.copy('scan.xyz', 'orig_scan.xyz')
-    sys.argv = 'td-launch qc.in dihedrals.txt -e qchem -g 15 --native_opt --zero_based_numbering -v'.split()
+    sys.argv = 'torsiondrive-launch qc.in dihedrals.txt -e qchem -g 15 --native_opt --zero_based_numbering -v'.split()
     launch.main()
     sys.argv = argv
     assert filecmp.cmp('scan.xyz', 'orig_scan.xyz')

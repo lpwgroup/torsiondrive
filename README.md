@@ -17,10 +17,10 @@ Dihedral scanner with wavefront propagation
 `python setup.py install`
 
 ## Run
-`td-launch <InputFile> <Dihedrals.txt> --init_coords <init_coords.xyz> -g <grid_spacing> -e <Engine> (--native_opt) (--wq_port XXX) (-v) > scan.log`
+`torsiondrive-launch <InputFile> <Dihedrals.txt> --init_coords <init_coords.xyz> -g <grid_spacing> -e <Engine> (--native_opt) (--wq_port XXX) (-v) > scan.log`
 
 ## API call
-`td-api current_state.json`
+`torsiondrive-api current_state.json`
 
 ### Input Parameters:
 

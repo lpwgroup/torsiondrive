@@ -16,8 +16,8 @@ setup(
     cmdclass=versioneer.get_cmdclass(),
     packages=['torsiondrive', "torsiondrive.tests"],
     entry_points={'console_scripts': [
-        'td-launch = torsiondrive.launch:main',
-        'td-api = torsiondrive.td_api:main',
+        'torsiondrive-launch = torsiondrive.launch:main',
+        'torsiondrive-api = torsiondrive.td_api:main',
     ]},
     url='https://github.com/lpwgroup/torsiondrive',
     install_requires=[
