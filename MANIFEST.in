@@ -1,0 +1,3 @@
+include versioneer.py
+include geometric/_version.py
+include LICENSE
