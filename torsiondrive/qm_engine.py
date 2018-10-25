@@ -80,6 +80,7 @@ class QMEngine(object):
                     # geomeTRIC use atomic index starting from 1
                     outfile.write("dihedral %d %d %d %d %f\n" % (d1+1, d2+1, d3+1, d4+1, v))
         else:
+            constraints_string = ''
             for key, value_list in self.extra_constraints.items():
                 if key == 'freeze' and len(value_list) > 0:
                     constraints_string += '$' + key + '\n'
