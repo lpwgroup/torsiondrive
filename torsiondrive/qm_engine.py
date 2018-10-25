@@ -82,10 +82,11 @@ class QMEngine(object):
         else:
             constraints_string = ''
             for key, value_list in self.extra_constraints.items():
-                if key == 'freeze' and len(value_list) > 0:
-                    constraints_string += '$' + key + '\n'
-                    for spec_tuple in value_list:
-                        constraints_string += ' '.join(spec_tuple) + '\n'
+                if key == 'freeze':
+                    if len(value_list) > 0:
+                        constraints_string += '$' + key + '\n'
+                        for spec_tuple in value_list:
+                            constraints_string += ' '.join(spec_tuple) + '\n'
                 elif key == 'set':
                     constraints_string += '$' + key + '\n'
                     for spec_tuple in value_list:
@@ -512,11 +513,12 @@ class EngineTerachem(QMEngine):
         else:
             self.constraintsStr = '\n'
             for key, value_list in self.extra_constraints.items():
-                if key == 'freeze' and len(value_list) > 0:
-                    self.constraintsStr += '$constraint_freeze\n'
-                    for spec_tuple in value_list:
-                        self.constraintsStr += '%s %s\n' % (spec_tuple[0], '_'.join(spec_tuple[1:]))
-                    self.constraintsStr += '$end\n\n'
+                if key == 'freeze':
+                    if len(value_list) > 0:
+                        self.constraintsStr += '$constraint_freeze\n'
+                        for spec_tuple in value_list:
+                            self.constraintsStr += '%s %s\n' % (spec_tuple[0], '_'.join(spec_tuple[1:]))
+                        self.constraintsStr += '$end\n\n'
                 elif key == 'set':
                     self.constraintsStr += '$constraint_set\n'
                     for spec_tuple in value_list:
