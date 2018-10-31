@@ -13,8 +13,40 @@ def check_all_float(iterable):
     except ValueError:
         return False
 
-def make_constraints_dict(constraints_string):
-    """ Create an ordered dictionary with constraints specification. """  
+def constraint_match(cons_type, cons_spec, indices):
+    """ Check to see if a string-specified constraint matches a set of provided zero-based indices. """
+    s = cons_spec.split()
+    if cons_type == 'bond':
+        sMatch = [int(i)-1 for i in s[:2]]
+        if len(indices) != 2: return False
+        elif tuple(sMatch) == tuple(indices): return True
+        elif tuple(sMatch[::-1]) == tuple(indices): return True
+        else: return False
+    elif cons_type == 'angle':
+        sMatch = [int(i)-1 for i in s[:3]]
+        if len(indices) != 3: return False
+        elif tuple(sMatch) == tuple(indices): return True
+        elif tuple(sMatch[::-1]) == tuple(indices): return True
+        else: return False
+    elif cons_type == 'dihedral':
+        # Dihedrals should "match" if the two middle atoms are the same
+        sMatch = [int(i)-1 for i in s[:4]]
+        if len(indices) != 4: return False
+        elif (sMatch[1], sMatch[2]) == (indices[1], indices[2]): return True
+        elif (sMatch[1], sMatch[2]) == (indices[2], indices[1]): return True
+        else: return False
+    
+def make_constraints_dict(constraints_string, exclude=[]):
+    """ Create an ordered dictionary with constraints specification. 
+    
+    Parameters
+    ----------
+    constraints_string: str
+        String-formatted constraint specification consistent with geomeTRIC constraints.txt
+    exclude: list, optional
+        A list of zero-based constraint atom indices (e.g. dihedrals to be scanned over)
+        which should not be included in this dictionary
+    """  
     constraints_mode = None
     constraints_dict = OrderedDict([('freeze', []),('set', [])])
     for line in constraints_string.split('\n'):
@@ -40,6 +72,7 @@ def make_constraints_dict(constraints_string):
                 spec_tuple = tuple(line.split())
                 if spec_tuple[0] not in ['bond','angle','dihedral']:
                     raise RuntimeError('Only bond, angle, and dihedral constraints are supported')
+                if any([constraint_match(spec_tuple[0], ' '.join(spec_tuple[1:]), excl) for excl in exclude]): continue
                 constraints_dict[constraints_mode].append(spec_tuple)
     return constraints_dict
 

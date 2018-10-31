@@ -89,7 +89,7 @@ def main():
 
     # parse additional constraints
     if args.constraints is not None:
-        constraints_dict = make_constraints_dict(open(args.constraints).read())
+        constraints_dict = make_constraints_dict(open(args.constraints).read(), exclude=dihedral_idxs)
     else:
         constraints_dict = None
 
