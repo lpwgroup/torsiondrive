@@ -41,7 +41,7 @@ class Psi4QCEngineEngine(QMEngine):
 
     def create_in_json_dict(self):
         constraints_dict = {
-                'set': [('dihedral', str(d1+1), str(d2+1), str(d3+1), str(d4+1), str(v)) for d1, d2, d3, d4, v in self.dihedral_idx_values]
+            'set': [{'type': 'dihedral', 'indices': [d1, d2, d3, d4], 'value': v} for d1, d2, d3, d4, v in self.dihedral_idx_values]
         }
         qc_schema_input = {
             "schema_name": "qc_schema_input",
