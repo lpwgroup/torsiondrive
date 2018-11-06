@@ -79,7 +79,7 @@ class SimpleServer:
         """ This function should be implemented on the server, that takes QM specs, geometry and constraint
         to generate a geomeTRIC json input dictionary"""
         constraints_dict = {
-            'set': [('dihedral', str(d1+1), str(d2+1), str(d3+1), str(d4+1), str(v)) for (d1, d2, d3, d4), v in zip(self.dihedrals, dihedral_values)]
+            'set': [{'type': 'dihedral', 'indices': list(d), 'value': v} for d, v in zip(self.dihedrals, dihedral_values)]
         }
         qc_schema_input = {
             "schema_name": "qc_schema_input",
