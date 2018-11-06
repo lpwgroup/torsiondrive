@@ -38,7 +38,7 @@ class DihedralScanner:
     DihedralScanner class is designed to create a dihedral grid, and fill in optimized geometries and energies
     into the grid, by running wavefront propagations of constrained optimizations
     """
-    def __init__(self, engine, dihedrals, grid_spacing, init_coords_M=None, verbose=False):
+    def __init__(self, engine, dihedrals, grid_spacing, init_coords_M=None, verbose=False, energy_decrease_thresh = 0.00001):
         """
         inputs:
         -------
@@ -81,7 +81,7 @@ class DihedralScanner:
         # filename for storing finished task result
         self.task_result_fname = 'dihedral_scanner_task_result.p'
         # threshold for determining the energy decrease
-        self.energy_decrease_thresh = 0.00001
+        self.energy_decrease_thresh = energy_decrease_thresh
 
     #----------------------
     # Initializing methods
