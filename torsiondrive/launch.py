@@ -111,8 +111,8 @@ def main():
 
     # create DihedralScanner object
     scanner = DihedralScanner(engine, dihedrals=dihedral_idxs, grid_spacing=grid_spacing,
-                              energy_decrease_thresh = args.energy_thresh,
-                              init_coords_M=init_coords_M, verbose=args.verbose)
+                              init_coords_M=init_coords_M, verbose=args.verbose,
+                              energy_decrease_thresh = args.energy_thresh)
     # Run the scan!
     scanner.master()
     # After finish, print result
