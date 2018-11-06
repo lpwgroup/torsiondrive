@@ -75,7 +75,7 @@ def main():
     parser.add_argument('-e', '--engine', type=str, default="psi4", choices=['qchem', 'psi4', 'terachem'], help='Engine for running scan')
     parser.add_argument('-c', '--constraints', type=str, default=None, help='Provide a constraints file in geomeTRIC format for additional freeze or set constraints (geomeTRIC or TeraChem only)')
     parser.add_argument('--native_opt', action='store_true', default=False, help='Use QM program native constrained optimization algorithm. This will turn off geomeTRIC package.')
-    parser.add_argument('--energy_thresh', type=float, default=0.0001, help='Only activate grid points if the new optimization is <thre> lower than the previous lowest energy (in a.u.).')
+    parser.add_argument('--energy_thresh', type=float, default=0.00001, help='Only activate grid points if the new optimization is <thre> lower than the previous lowest energy (in a.u.).')
     parser.add_argument('--wq_port', type=int, default=None, help='Specify port number to use Work Queue to distribute optimization jobs.')
     parser.add_argument('--zero_based_numbering', action='store_true', help='Use zero_based_numbering in dihedrals file.')
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help='Print more information while running.')
