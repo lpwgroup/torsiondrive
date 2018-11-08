@@ -36,7 +36,7 @@ def plot_grid_contour(grid_data, method='imshow'):
     # convert abs energies to relative energies
     z_mat = (z_mat - z_mat.min()) * 627.509
     if method == 'imshow':
-        plt.imshow(z_mat[::-1], cmap='rainbow', origin='lower', extent=(-165, 180, -165, 180))
+        plt.imshow(z_mat, cmap='rainbow', origin='lower', extent=(-165, 180, -165, 180))
     elif method == 'contourf':
         plt.contourf(x_array, y_array, z_mat, antialiased=True, cmap='rainbow')
     plt.colorbar()
