@@ -3,6 +3,7 @@ import subprocess
 
 import numpy as np
 from collections import OrderedDict
+from geometric.nifty import uncommadash
 from geometric.molecule import Molecule
 from copy import deepcopy
 
@@ -35,7 +36,14 @@ def constraint_match(cons_type, cons_spec, indices):
         elif (sMatch[1], sMatch[2]) == (indices[1], indices[2]): return True
         elif (sMatch[1], sMatch[2]) == (indices[2], indices[1]): return True
         else: return False
-    
+    elif cons_type == 'xyz':
+        sMatch = uncommadash(cons_spec)
+        if sMatch == sorted(indices): return True
+        elif len(indices) == 4 and indices[0] in sMatch and indices[3] in sMatch: return True
+        else: return False
+    else:
+        raise RuntimeError("Problem detected with user-supplied extra constraints")
+        
 def make_constraints_dict(constraints_string, exclude=[]):
     """ Create an ordered dictionary with constraints specification. 
     
@@ -70,8 +78,8 @@ def make_constraints_dict(constraints_string, exclude=[]):
                 raise RuntimeError('Trying to read the above constraint line, but constraint mode is not set')
             else:
                 spec_tuple = tuple(line.split())
-                if spec_tuple[0] not in ['bond','angle','dihedral']:
-                    raise RuntimeError('Only bond, angle, and dihedral constraints are supported')
+                if spec_tuple[0] not in ['bond','angle','dihedral','xyz']:
+                    raise RuntimeError('Only bond, angle, and dihedral, xyz constraints are supported')
                 if any([constraint_match(spec_tuple[0], ' '.join(spec_tuple[1:]), excl) for excl in exclude]): continue
                 constraints_dict[constraints_mode].append(spec_tuple)
     return constraints_dict
