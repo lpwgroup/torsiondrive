@@ -17,7 +17,7 @@ def check_all_float(iterable):
 def constraint_match(cons_type, cons_spec, indices):
     """ Check to see if a string-specified constraint matches a set of provided zero-based indices. """
     s = cons_spec.split()
-    if cons_type == 'bond':
+    if cons_type in ['bond', 'distance']:
         sMatch = [int(i)-1 for i in s[:2]]
         if len(indices) != 2: return False
         elif tuple(sMatch) == tuple(indices): return True
@@ -78,7 +78,7 @@ def make_constraints_dict(constraints_string, exclude=[]):
                 raise RuntimeError('Trying to read the above constraint line, but constraint mode is not set')
             else:
                 spec_tuple = tuple(line.split())
-                if spec_tuple[0] not in ['bond','angle','dihedral','xyz']:
+                if spec_tuple[0] not in ['bond','distance','angle','dihedral','xyz']:
                     raise RuntimeError('Only bond, angle, and dihedral, xyz constraints are supported')
                 if any([constraint_match(spec_tuple[0], ' '.join(spec_tuple[1:]), excl) for excl in exclude]): continue
                 constraints_dict[constraints_mode].append(spec_tuple)
@@ -558,12 +558,12 @@ class EngineTerachem(QMEngine):
                     if len(value_list) > 0:
                         self.constraintsStr += '$constraint_freeze\n'
                         for spec_tuple in value_list:
-                            self.constraintsStr += '%s %s\n' % (spec_tuple[0], '_'.join(spec_tuple[1:]))
+                            self.constraintsStr += '%s %s\n' % (spec_tuple[0].replace('distance', 'bond'), '_'.join(spec_tuple[1:]))
                         self.constraintsStr += '$end\n\n'
                 elif key == 'set':
                     self.constraintsStr += '$constraint_set\n'
                     for spec_tuple in value_list:
-                        self.constraintsStr += '%s %s %s\n' % (spec_tuple[0], spec_tuple[-1], '_'.join(spec_tuple[1:-1]))
+                        self.constraintsStr += '%s %s %s\n' % (spec_tuple[0].replace('distance', 'bond'), spec_tuple[-1], '_'.join(spec_tuple[1:-1]))
                     for d1, d2, d3, d4, v in self.dihedral_idx_values:
                         self.constraintsStr += 'dihedral %f %d_%d_%d_%d\n' % (v, d1+1, d2+1, d3+1, d4+1)
                     self.constraintsStr += '$end\n'
