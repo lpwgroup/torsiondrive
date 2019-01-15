@@ -2,7 +2,7 @@
 torsiondrive
 Dihedral scanner with wavefront propagation
 """
-from setuptools import setup
+from setuptools import setup, find_packages
 import versioneer
 
 DOCLINES = __doc__.split("\n")
@@ -14,7 +14,7 @@ setup(
     long_description="\n".join(DOCLINES[2:]),
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
-    packages=['torsiondrive', "torsiondrive.tests"],
+    packages=find_packages(),
     entry_points={'console_scripts': [
         'torsiondrive-launch = torsiondrive.launch:main',
         'torsiondrive-api = torsiondrive.td_api:main',
