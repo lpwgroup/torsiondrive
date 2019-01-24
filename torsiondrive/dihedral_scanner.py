@@ -116,7 +116,9 @@ class DihedralScanner:
                     print("Warning! dihedral values inconsistent with check_grid_id")
                     print('dihedral_values', dihedral_values, 'check_grid_id', check_grid_id)
                     break
-        dihedral_id = (np.round(dihedral_values / self.grid_spacing) * self.grid_spacing).astype(int)
+        # here we shift the dihedral by +180 then shift back because -180 the actual origin of the grid
+        # this allows grid_spacing of 24
+        dihedral_id = (np.round((dihedral_values + 180) / self.grid_spacing) * self.grid_spacing - 180).astype(int)
         # we return a tuples as the grid_id
         return tuple([normalize_dihedral(d) for d in dihedral_id])
 
