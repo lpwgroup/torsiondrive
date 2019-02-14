@@ -458,7 +458,8 @@ class DihedralScanner:
         m = Molecule()
         m.elem = list(self.engine.M.elem)
         m.qm_energies, m.xyzs, m.comms = [], [], []
-        for gid in self.grid_ids:
+        # only print grid with energies
+        for gid in self.grid_energies:
             m.qm_energies.append(self.grid_energies[gid])
             m.xyzs.append(self.grid_final_geometries[gid])
             m.comms.append("Dihedral %s Energy %.9f" % (str(gid), self.grid_energies[gid]))

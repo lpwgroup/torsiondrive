@@ -30,7 +30,7 @@ def load_dihedralfile(dihedralfile, zero_based_numbering=False):
     If a fifth and sixth number are given in the line, they will be recognized as the lower
     and upper range limit of the dihedral angle, i.e. Reading the file
 
-    # dihedral definition by atom indices starting from 0
+    # dihedral definition by atom indices starting from 1
     # i     j     k     j   (range_low)   (range_high)
       1     2     3     4     -120            120
       2     3     4     5      -90            150
