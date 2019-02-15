@@ -73,6 +73,9 @@ def load_dihedralfile(dihedralfile, zero_based_numbering=False):
                 if len(ls) == 4:
                     dihedral_idxs.append([int(i)-1 for i in ls])
                 elif len(ls) == 6:
+                    # insert default values [-180, 180] for missing values above
+                    for _ in range(len(dihedral_idxs) - len(dihedral_ranges)):
+                        dihedral_ranges.append([-180, 180])
                     dihedral_idxs.append([int(i)-1 for i in ls[:4]])
                     dihedral_ranges.append([int(v) for v in ls[4:]])
                 else:
@@ -83,7 +86,10 @@ def load_dihedralfile(dihedralfile, zero_based_numbering=False):
     # check all dihedrals valid (>= 0)
     assert all(i >= 0 for d in dihedral_idxs for i in d), f'Dihedral indices {dihedral_idxs} error, all should >= 0'
     # check all ranges valid [-180, 180]
-    assert all(low >= 180 and high <= 180 and low < high for l, r in dihedral_ranges), f'Dihedral ranges {dihedral_ranges} mistaken, range should be within [-180, 180]'
+    assert all(low >= -180 and high <= 180 and low < high for low, high in dihedral_ranges), f'Dihedral ranges {dihedral_ranges} mistaken, range should be within [-180, 180]'
+    # check dihedral_idxs and dihedral_ranges have same length
+    if dihedral_ranges != []:
+        assert len(dihedral_idxs) == len(dihedral_ranges), f'Dihedral ranges {dihedral_ranges} length not consistent with dihedral idxs {dihedral_idxs}'
     return dihedral_idxs, dihedral_ranges
 
 def create_engine(enginename, inputfile=None, work_queue_port=None, native_opt=False, extra_constraints=None):

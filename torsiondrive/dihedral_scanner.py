@@ -65,11 +65,14 @@ class DihedralScanner:
         self.setup_grid()
         # validate dihedral ranges
         if dihedral_ranges:
-            assert all(low >= 180 and high <= 180 and low < high for l, r in dihedral_ranges), \
+            assert all(l >= -180 and h <= 180 and l < h for l, h in dihedral_ranges), \
                 f'Dihedral ranges {dihedral_ranges} mistaken, range should be within [-180, 180]'
+            assert len(dihedral_ranges) == len(self.dihedrals), f'Dihedral ranges {dihedral_ranges} do not have consistent length to dihedrals {self.dihedrals}'
             if verbose:
                 print(f"Dihedral scan initialized with range limit {dihedral_ranges}")
-        self.dihedral_ranges = dihedral_ranges if dihedral_ranges is not None else []
+            self.dihedral_ranges = copy.deepcopy(dihedral_ranges)
+        else:
+            self.dihedral_ranges = []
         self.opt_queue = PriorityQueue()
         # try to use init_coords_M first, if not given, use M in engine's template
         # `for m in init_coords_M` doesn't work since m.measure_dihedrals will fail because it has different m.xyzs shape
@@ -278,7 +281,7 @@ class DihedralScanner:
                 low, high = d_range
                 if d < low or d > high:
                     if self.verbose:
-                        print(f"Task with target grid_id {to_grid_id} skipped because it doesn't fit in limited range {low}--{high}")
+                        print(f"Task with target grid_id {to_grid_id} skipped because {d} doesn't fit in limited range {low}--{high}")
                     return False
         return True
 
@@ -459,7 +462,7 @@ class DihedralScanner:
         m.elem = list(self.engine.M.elem)
         m.qm_energies, m.xyzs, m.comms = [], [], []
         # only print grid with energies
-        for gid in self.grid_energies:
+        for gid in sorted(self.grid_energies.keys()):
             m.qm_energies.append(self.grid_energies[gid])
             m.xyzs.append(self.grid_final_geometries[gid])
             m.comms.append("Dihedral %s Energy %.9f" % (str(gid), self.grid_energies[gid]))
