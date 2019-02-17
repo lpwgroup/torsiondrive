@@ -82,7 +82,7 @@ class SimpleServer:
             'set': [{'type': 'dihedral', 'indices': list(d), 'value': v} for d, v in zip(self.dihedrals, dihedral_values)]
         }
         qc_schema_input = {
-            "schema_name": "qc_schema_input",
+            "schema_name": "qcschema_input",
             "schema_version": 1,
             "driver": "gradient",
             "model": {
@@ -93,7 +93,7 @@ class SimpleServer:
         }
 
         geometric_input_dict = {
-            "schema_name": "qc_schema_optimization_input",
+            "schema_name": "qcschema_optimization_input",
             "schema_version": 1,
             "keywords": {
                 "coordsys": "tric",

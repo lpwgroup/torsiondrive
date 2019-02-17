@@ -44,7 +44,7 @@ class Psi4QCEngineEngine(QMEngine):
             'set': [{'type': 'dihedral', 'indices': [d1, d2, d3, d4], 'value': v} for d1, d2, d3, d4, v in self.dihedral_idx_values]
         }
         qc_schema_input = {
-            "schema_name": "qc_schema_input",
+            "schema_name": "qcschema_input",
             "schema_version": 1,
             "driver": "gradient",
             "model": {
@@ -54,7 +54,7 @@ class Psi4QCEngineEngine(QMEngine):
             "keywords": {}
         }
         in_json_dict = {
-            "schema_name": "qc_schema_optimization_input",
+            "schema_name": "qcschema_optimization_input",
             "schema_version": 1,
             "keywords": {
                 "coordsys": "tric",
@@ -73,6 +73,8 @@ class Psi4QCEngineEngine(QMEngine):
         """ Load the optimized geometry and energy from self.out_json_dict into a new molecule object and return """
         out_json_dict = self.stored_results.pop(os.getcwd())
         mdict = out_json_dict['final_molecule']
+        if not mdict:
+            raise RuntimeError("QCEngine failed.\n" + str(out_json_dict))
         m = Molecule()
         m.xyzs = [np.array(mdict['geometry']).reshape(-1, 3) * bohr2ang]
         m.elem = mdict['symbols']
