@@ -426,7 +426,7 @@ class EngineQChem(QMEngine):
         self.M.xyzs = [np.array(coords, dtype=float)]
         self.M.build_topology()
 
-    def write_input(self, filename='job.in'):
+    def write_input(self, filename='qc.in'):
         """ Write QChem input using Molecule Class """
         assert hasattr(self, 'qchem_temp'), "self.qchem_temp not set, call load_input() first"
         with open(filename, 'w') as outfile:
