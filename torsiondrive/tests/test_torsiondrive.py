@@ -3,8 +3,14 @@ Unit and regression test for the torsiondrive package.
 """
 
 import pytest
-import os, sys, subprocess, filecmp, shutil, json
+import os
+import sys
+import subprocess
+import filecmp
+import shutil
+import json
 import numpy as np
+import torsiondrive
 from torsiondrive.dihedral_scanner import DihedralScanner, Molecule
 from torsiondrive.qm_engine import QMEngine, EnginePsi4, EngineQChem, EngineTerachem
 from torsiondrive.priority_queue import PriorityQueue
@@ -73,12 +79,11 @@ def test_qm_engine():
     assert engine.load_native_output() is None
 
 
-def test_engine_psi4_native():
+def test_engine_psi4_native(tmpdir):
     """
     Testing EnginePsi4
     """
-    os.mkdir('test.tmp')
-    os.chdir('test.tmp')
+    tmpdir.chdir()
     with open('input.dat', 'w') as psi4in:
         psi4in.write("""
 molecule {
@@ -102,15 +107,12 @@ optimize('mp2')
         assert pytest.approx(-150.9647, 0.0001) == m.qm_energies[0]
     except subprocess.CalledProcessError:
         pass
-    os.chdir('..')
-    shutil.rmtree('test.tmp')
 
-def test_engine_psi4_geometric():
+def test_engine_psi4_geometric(tmpdir):
     """
     Testing EnginePsi4 by geomeTRIC
     """
-    os.mkdir('test.tmp')
-    os.chdir('test.tmp')
+    tmpdir.chdir()
     with open('input.dat', 'w') as psi4in:
         psi4in.write("""
 molecule {
@@ -134,15 +136,12 @@ gradient('mp2')
         assert pytest.approx(-150.9647, 0.0001) == m.qm_energies[0]
     except subprocess.CalledProcessError:
         pass
-    os.chdir('..')
-    shutil.rmtree('test.tmp')
 
-def test_engine_qchem_native():
+def test_engine_qchem_native(tmpdir):
     """
     Testing EngineQChem
     """
-    os.mkdir('test.tmp')
-    os.chdir('test.tmp')
+    tmpdir.chdir()
     with open('qc.in', 'w') as outfile:
         outfile.write("""
         $molecule
@@ -169,15 +168,12 @@ def test_engine_qchem_native():
         assert pytest.approx(-149.9420, 0.0001) == m.qm_energies[0]
     except subprocess.CalledProcessError:
         pass
-    os.chdir('..')
-    shutil.rmtree('test.tmp')
 
-def test_engine_qchem_geometric():
+def test_engine_qchem_geometric(tmpdir):
     """
     Testing EngineQChem by geomeTRIC
     """
-    os.mkdir('test.tmp')
-    os.chdir('test.tmp')
+    tmpdir.chdir()
     with open('qc.in', 'w') as outfile:
         outfile.write("""
         $molecule
@@ -204,15 +200,12 @@ def test_engine_qchem_geometric():
         assert pytest.approx(-149.9420, 0.0001) == m.qm_energies[0]
     except subprocess.CalledProcessError:
         pass
-    os.chdir('..')
-    shutil.rmtree('test.tmp')
 
-def test_engine_terachem_native():
+def test_engine_terachem_native(tmpdir):
     """
     Testing EngineTerachem
     """
-    os.mkdir('test.tmp')
-    os.chdir('test.tmp')
+    tmpdir.chdir()
     with open('run.in', 'w') as outfile:
         outfile.write("""
         coordinates start.xyz
@@ -241,15 +234,12 @@ def test_engine_terachem_native():
         assert pytest.approx(-151.5334, 0.0001) == m.qm_energies[0]
     except subprocess.CalledProcessError:
         pass
-    os.chdir('..')
-    shutil.rmtree('test.tmp')
 
-def test_engine_terachem_geometric():
+def test_engine_terachem_geometric(tmpdir):
     """
     Testing EngineTerachem by geomeTRIC
     """
-    os.mkdir('test.tmp')
-    os.chdir('test.tmp')
+    tmpdir.chdir()
     with open('run.in', 'w') as outfile:
         outfile.write("""
         coordinates start.xyz
@@ -278,91 +268,112 @@ def test_engine_terachem_geometric():
         assert pytest.approx(-151.5334, 0.0001) == m.qm_energies[0]
     except subprocess.CalledProcessError:
         pass
-    os.chdir('..')
-    shutil.rmtree('test.tmp')
 
-def test_reproduce_1D_examples():
+@pytest.fixture(scope="module")
+def example_path(tmpdir_factory):
+    """ Pytest fixture funtion to download the examples, decompress and return the path to the example/ folder """
+    # tmpdir_factory is a pytest built-in fixture that has "session" scope
+    tmpdir = tmpdir_factory.mktemp('torsiondrive_test_tmp')
+    tmpdir.chdir()
+    example_version = '0.9.4'
+    url = f'https://github.com/lpwgroup/torsiondrive_examples/archive/v{example_version}.tar.gz'
+    subprocess.run(f'wget -nc -q {url}', shell=True, check=True)
+    subprocess.run(f'tar zxf v{example_version}.tar.gz', shell=True, check=True)
+    os.chdir(f'torsiondrive_examples-{example_version}/examples')
+    return os.getcwd()
+
+def test_reproduce_1D_examples(example_path):
     """
     Testing Reproducing examples/hooh-1d
     """
     from torsiondrive import launch
-    this_file_folder = os.path.dirname(os.path.realpath(__file__))
-    example_path = os.path.join(this_file_folder, '..', '..', 'examples')
-    os.chdir(example_path)
-    subprocess.call('tar zxf hooh-1d.tar.gz ', shell=True)
     # reproduce psi4 local geomeTRIC
+    os.chdir(example_path)
     os.chdir('hooh-1d/psi4/run_local/geomeTRIC')
+    subprocess.run('tar zxf opt_tmp.tar.gz', shell=True, check=True)
     shutil.copy('scan.xyz', 'orig_scan.xyz')
-    dihedral_idxs = launch.load_dihedralfile('dihedrals.txt', zero_based_numbering=True)
+    dihedral_idxs, dihedral_ranges = launch.load_dihedralfile('dihedrals.txt')
     engine = launch.create_engine('psi4', inputfile='input.dat')
     scanner = DihedralScanner(engine, dihedrals=dihedral_idxs, grid_spacing=[15], verbose=True)
     scanner.master()
     assert filecmp.cmp('scan.xyz', 'orig_scan.xyz')
-    os.chdir(example_path)
     # reproduce psi4 local native_opt
+    os.chdir(example_path)
     os.chdir('hooh-1d/psi4/run_local/native_opt')
+    subprocess.run('tar zxf opt_tmp.tar.gz', shell=True, check=True)
     shutil.copy('scan.xyz', 'orig_scan.xyz')
-    dihedral_idxs = launch.load_dihedralfile('dihedrals.txt', zero_based_numbering=True)
+    dihedral_idxs, dihedral_ranges = launch.load_dihedralfile('dihedrals.txt')
     engine = launch.create_engine('psi4', inputfile='input.dat', native_opt=True)
     scanner = DihedralScanner(engine, dihedrals=dihedral_idxs, grid_spacing=[15], verbose=True)
     scanner.master()
     assert filecmp.cmp('scan.xyz', 'orig_scan.xyz')
-    os.chdir(example_path)
     # reproduce qchem local geomeTRIC
+    os.chdir(example_path)
     os.chdir('hooh-1d/qchem/run_local/geomeTRIC')
+    subprocess.run('tar zxf opt_tmp.tar.gz', shell=True, check=True)
     shutil.copy('scan.xyz', 'orig_scan.xyz')
-    dihedral_idxs = launch.load_dihedralfile('dihedrals.txt', zero_based_numbering=True)
+    dihedral_idxs, dihedral_ranges = launch.load_dihedralfile('dihedrals.txt')
     engine = launch.create_engine('qchem', inputfile='qc.in')
     scanner = DihedralScanner(engine, dihedrals=dihedral_idxs, grid_spacing=[15], verbose=True)
     scanner.master()
     assert filecmp.cmp('scan.xyz', 'orig_scan.xyz')
-    os.chdir(example_path)
     # reproduce terachem local geomeTRIC
+    os.chdir(example_path)
     os.chdir('hooh-1d/terachem/run_local/geomeTRIC')
+    subprocess.run('tar zxf opt_tmp.tar.gz', shell=True, check=True)
     shutil.copy('scan.xyz', 'orig_scan.xyz')
-    dihedral_idxs = launch.load_dihedralfile('dihedrals.txt', zero_based_numbering=True)
+    dihedral_idxs, dihedral_ranges = launch.load_dihedralfile('dihedrals.txt')
     engine = launch.create_engine('terachem', inputfile='run.in')
     scanner = DihedralScanner(engine, dihedrals=dihedral_idxs, grid_spacing=[15], verbose=True)
     scanner.master()
     assert filecmp.cmp('scan.xyz', 'orig_scan.xyz')
 
-def test_reproduce_2D_example():
+def test_reproduce_2D_example(example_path):
     """
     Testing Reproducing examples/propanol-2d
     """
     from torsiondrive import launch
-    this_file_folder = os.path.dirname(os.path.realpath(__file__))
-    example_path = os.path.join(this_file_folder, '..', '..', 'examples')
-    os.chdir(example_path)
-    subprocess.call('tar zxf propanol-2d.tar.gz', shell=True)
     # reproduce qchem work_queue geomeTRIC
+    os.chdir(example_path)
     os.chdir('propanol-2d/work_queue_qchem_geomeTRIC')
+    subprocess.run('tar zxf opt_tmp.tar.gz', shell=True, check=True)
     shutil.copy('scan.xyz', 'orig_scan.xyz')
     argv = sys.argv[:]
-    sys.argv = 'torsiondrive-launch qc.in dihedrals.txt -e qchem -g 15 --zero_based_numbering -v'.split()
+    sys.argv = 'torsiondrive-launch qc.in dihedrals.txt -e qchem -g 15 -v'.split()
     launch.main()
     assert filecmp.cmp('scan.xyz', 'orig_scan.xyz')
-    os.chdir(example_path)
     # reproduce qchem work_queue native_opt
+    os.chdir(example_path)
     os.chdir('propanol-2d/work_queue_qchem_native_opt')
+    subprocess.run('tar zxf opt_tmp.tar.gz', shell=True, check=True)
     shutil.copy('scan.xyz', 'orig_scan.xyz')
-    shutil.copy('scan.xyz', 'orig_scan.xyz')
-    sys.argv = 'torsiondrive-launch qc.in dihedrals.txt -e qchem -g 15 --native_opt --zero_based_numbering -v'.split()
+    sys.argv = 'torsiondrive-launch qc.in dihedrals.txt -e qchem -g 15 --native_opt -v'.split()
     launch.main()
     sys.argv = argv
     assert filecmp.cmp('scan.xyz', 'orig_scan.xyz')
-    os.chdir(example_path)
 
-def test_reproduce_api_example():
+def test_reproduce_range_limit_example(example_path):
+    """
+    Testing Reproducing examples/range_limited
+    """
+    from torsiondrive import launch
+    # reproduce qchem work_queue geomeTRIC
+    os.chdir(example_path)
+    os.chdir('range_limited')
+    subprocess.run('tar zxf opt_tmp.tar.gz', shell=True, check=True)
+    shutil.copy('scan.xyz', 'orig_scan.xyz')
+    argv = sys.argv[:]
+    sys.argv = 'torsiondrive-launch qc.in dihedrals.txt -g 15 30 -e qchem -v'.split()
+    launch.main()
+    assert filecmp.cmp('scan.xyz', 'orig_scan.xyz')
+
+def test_reproduce_api_example(example_path):
     """
     Testing Reproducing examples/api_example
     """
     from torsiondrive import td_api
-    this_file_folder = os.path.dirname(os.path.realpath(__file__))
-    example_path = os.path.join(this_file_folder, '..', '..', 'examples')
-    os.chdir(example_path)
-    subprocess.call('tar zxf api_example.tar.gz', shell=True)
     # test running api
+    os.chdir(example_path)
     os.chdir('api_example')
     orig_next_jobs = json.load(open('next_jobs.json'))
     current_state = json.load(open('current_state.json'))
@@ -373,7 +384,6 @@ def test_reproduce_api_example():
     loaded_state = td_api.current_state_json_load(current_state)
     td_api.current_state_json_dump(loaded_state, 'new_current_state.json')
     assert filecmp.cmp('current_state.json', 'new_current_state.json')
-    os.chdir(example_path)
 
 @pytest.mark.skipif("work_queue" not in sys.modules, reason='work_queue not found')
 def test_work_queue():

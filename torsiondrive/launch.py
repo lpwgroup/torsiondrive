@@ -11,27 +11,52 @@ def load_dihedralfile(dihedralfile, zero_based_numbering=False):
     """
     Load definition of dihedral from a text file, i.e. Loading the file
 
-    # dihedral definition by atom indices starting from 0
     # i     j     k     j
       1     2     3     4
       2     3     4     5
 
     Will return dihedral_idxs = [(0,1,2,3), (1,2,3,4)]
 
-    If a comment line
-    #zero_based_numbering
-    is found at the beginning of the file, or
-    parameter zero_based_numbering == True
-    reading will become
+    If a comment line #zero_based_numbering is found at the beginning of the file,
+    or parameter zero_based_numbering == True, atom indices will be zero-based
 
+    #zero_based_numbering
     # i     j     k     j
       1     2     3     4
       2     3     4     5
 
     Returns dihedral_idxs = [(1,2,3,4), (2,3,4,5)]
 
+    If a fifth and sixth number are given in the line, they will be recognized as the lower
+    and upper range limit of the dihedral angle, i.e. Reading the file
+
+    # dihedral definition by atom indices starting from 1
+    # i     j     k     j   (range_low)   (range_high)
+      1     2     3     4     -120            120
+      2     3     4     5      -90            150
+
+    will generate two dihedrals, the first dihedral (0,1,2,3) have a range limit [-120, 120],
+    the second dihedral (1,2,3,4) have the range limit [-90, 150], both ends inclusive.
+
+    Parameters
+    ----------
+    dihedralfile: str
+        filename that contains the dihedral angle definition
+    zero_based_numbering: bool, default False
+        Setting to true means atom indices in the file are zero-based
+
+    Returns
+    -------
+    dihedral_idxs: list of list of 4 integers
+        dihedrals are defined in 4 atom indices, e.g. [[i0,j0,k0,l0], [i1,j1,k1,l1]]
+        The indices are zero-based.
+    dihedral_ranges: list of list of 2 numbers
+        dihedral ranges should be either empty (no limit), or two numbers [low, high],
+        e.g. [[-120, 120], [-90, 150]]
+        low >= -180, high <= 180, low < high
     """
     dihedral_idxs = []
+    dihedral_ranges = []
     with open(dihedralfile) as infile:
         for line in infile:
             line = line.strip()
@@ -43,12 +68,29 @@ def load_dihedralfile(dihedralfile, zero_based_numbering=False):
                 elif comment == 'one_based_numbering':
                     if zero_based_numbering == True:
                         raise ValueError("Can not specify both zero_based_numbering and one_based_indexing.")
-                continue
-            if zero_based_numbering == False:
-                dihedral_idxs.append([int(i)-1 for i in line.split()])
             else:
-                dihedral_idxs.append([int(i) for i in line.split()])
-    return dihedral_idxs
+                ls = line.split()
+                if len(ls) == 4:
+                    dihedral_idxs.append([int(i)-1 for i in ls])
+                elif len(ls) == 6:
+                    # insert default values [-180, 180] for missing values above
+                    for _ in range(len(dihedral_idxs) - len(dihedral_ranges)):
+                        dihedral_ranges.append([-180, 180])
+                    dihedral_idxs.append([int(i)-1 for i in ls[:4]])
+                    dihedral_ranges.append([int(v) for v in ls[4:]])
+                else:
+                    raise ValueError(f'Input line can not be recognized, should be 4 or 6 numbers\n{line}')
+    # conver dihedral indices if zero based
+    if zero_based_numbering:
+        dihedral_idxs = [[i+i for i in d] for d in dihedral_idxs]
+    # check all dihedrals valid (>= 0)
+    assert all(i >= 0 for d in dihedral_idxs for i in d), f'Dihedral indices {dihedral_idxs} error, all should >= 0'
+    # check all ranges valid [-180, 180]
+    assert all(low >= -180 and high <= 180 and low < high for low, high in dihedral_ranges), f'Dihedral ranges {dihedral_ranges} mistaken, range should be within [-180, 180]'
+    # check dihedral_idxs and dihedral_ranges have same length
+    if dihedral_ranges != []:
+        assert len(dihedral_idxs) == len(dihedral_ranges), f'Dihedral ranges {dihedral_ranges} length not consistent with dihedral idxs {dihedral_idxs}'
+    return dihedral_idxs, dihedral_ranges
 
 def create_engine(enginename, inputfile=None, work_queue_port=None, native_opt=False, extra_constraints=None):
     """
@@ -75,7 +117,7 @@ def main():
     parser.add_argument('-e', '--engine', type=str, default="psi4", choices=['qchem', 'psi4', 'terachem'], help='Engine for running scan')
     parser.add_argument('-c', '--constraints', type=str, default=None, help='Provide a constraints file in geomeTRIC format for additional freeze or set constraints (geomeTRIC or TeraChem only)')
     parser.add_argument('--native_opt', action='store_true', default=False, help='Use QM program native constrained optimization algorithm. This will turn off geomeTRIC package.')
-    parser.add_argument('--energy_thresh', type=float, default=0.0001, help='Only activate grid points if the new optimization is <thre> lower than the previous lowest energy (in a.u.).')
+    parser.add_argument('--energy_thresh', type=float, default=0.00001, help='Only activate grid points if the new optimization is <thre> lower than the previous lowest energy (in a.u.).')
     parser.add_argument('--wq_port', type=int, default=None, help='Specify port number to use Work Queue to distribute optimization jobs.')
     parser.add_argument('--zero_based_numbering', action='store_true', help='Use zero_based_numbering in dihedrals file.')
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help='Print more information while running.')
@@ -85,7 +127,9 @@ def main():
     print(' '.join(sys.argv))
 
     # parse the dihedral file
-    dihedral_idxs = load_dihedralfile(args.dihedralfile, args.zero_based_numbering)
+    if args.zero_based_numbering is True:
+        print("The use of command line --zero_based_numbering is deprecated and will be removed in the future. Please use #zero_based_numbering in dihedralfile")
+    dihedral_idxs, dihedral_ranges = load_dihedralfile(args.dihedralfile, args.zero_based_numbering)
     grid_dim = len(dihedral_idxs)
 
     # parse additional constraints
@@ -110,9 +154,8 @@ def main():
     init_coords_M = Molecule(args.init_coords) if args.init_coords else None
 
     # create DihedralScanner object
-    scanner = DihedralScanner(engine, dihedrals=dihedral_idxs, grid_spacing=grid_spacing,
-                              init_coords_M=init_coords_M, verbose=args.verbose,
-                              energy_decrease_thresh = args.energy_thresh)
+    scanner = DihedralScanner(engine, dihedrals=dihedral_idxs, dihedral_ranges=dihedral_ranges, grid_spacing=grid_spacing, init_coords_M=init_coords_M,
+                              energy_decrease_thresh=args.energy_thresh,  verbose=args.verbose)
     # Run the scan!
     scanner.master()
     # After finish, print result

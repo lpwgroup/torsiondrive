@@ -38,7 +38,7 @@ class DihedralScanner:
     DihedralScanner class is designed to create a dihedral grid, and fill in optimized geometries and energies
     into the grid, by running wavefront propagations of constrained optimizations
     """
-    def __init__(self, engine, dihedrals, grid_spacing, init_coords_M=None, verbose=False, energy_decrease_thresh = 0.00001):
+    def __init__(self, engine, dihedrals, grid_spacing, init_coords_M=None, energy_decrease_thresh=0.00001, dihedral_ranges=None, verbose=False):
         """
         inputs:
         -------
@@ -59,14 +59,25 @@ class DihedralScanner:
             self.dihedrals.append(dihedral_tuple)
         self.grid_dim = len(self.dihedrals)
         for gs in grid_spacing:
-            assert (0 < gs < 360) and (360 % gs == 0), "grid_spacing %s is not valid, all values should be a divisor of 360" % grid_spacing
-        assert len(grid_spacing) == self.grid_dim, "Number of grid spacings %d is not consistent with number of dihedrals %d" % (len(grid_spacing), self.grid_dim)
+            assert (0 < gs < 360) and (360 % gs == 0), f"grid_spacing {grid_spacing} is not valid, all values should be a divisor of 360"
+        assert len(grid_spacing) == self.grid_dim, f"Number of grid spacings {len(grid_spacing)} is not consistent with number of dihedrals {self.grid_dim}"
         self.grid_spacing = tuple(map(int, grid_spacing))
         self.setup_grid()
+        # validate dihedral ranges
+        if dihedral_ranges:
+            assert all(l >= -180 and h <= 180 and l < h for l, h in dihedral_ranges), \
+                f'Dihedral ranges {dihedral_ranges} mistaken, range should be within [-180, 180]'
+            assert len(dihedral_ranges) == len(self.dihedrals), f'Dihedral ranges {dihedral_ranges} do not have consistent length to dihedrals {self.dihedrals}'
+            if verbose:
+                print(f"Dihedral scan initialized with range limit {dihedral_ranges}")
+            self.dihedral_ranges = copy.deepcopy(dihedral_ranges)
+        else:
+            self.dihedral_ranges = []
         self.opt_queue = PriorityQueue()
         # try to use init_coords_M first, if not given, use M in engine's template
         # `for m in init_coords_M` doesn't work since m.measure_dihedrals will fail because it has different m.xyzs shape
         self.init_coords_M = [init_coords_M[i] for i in range(len(init_coords_M))] if init_coords_M is not None else [self.engine.M]
+        # store verbose flag for later printing
         self.verbose = verbose
         # dictionary that stores the lowest energy for each grid point
         self.grid_energies = dict()
@@ -233,8 +244,10 @@ class DihedralScanner:
                 # every neighbor grid point will get one new task
                 for neighbor_gid in self.grid_neighbors(grid_id):
                     task = m, grid_id, neighbor_gid
-                    # all jobs are pushed with the same priority for now, can be adjusted here
-                    self.opt_queue.push(task)
+                    # validate task before pushing
+                    if self.validate_task(task):
+                        # all jobs are pushed with the same priority for now, can be adjusted here
+                        self.opt_queue.push(task)
             # check if all jobs finished
             if len(self.opt_queue) == 0 and len(self.running_job_path_info) == 0:
                 print("All optimizations converged at lowest energy. Job Finished!")
@@ -247,6 +260,31 @@ class DihedralScanner:
     # Utility methods Called by Master
     #----------------------------------
 
+    def validate_task(self, task):
+        """
+        Validate a constrained optimization task before pushing to the queue.
+        This is useful to limit the dihedrals into a range of interest.
+
+        Parameters
+        ----------
+        task: (m, from_grid_id, to_grid_id)
+            A constrained optimization task
+
+        Returns
+        -------
+        isValid: bool
+            True if the task is valid
+        """
+        m, from_grid_id, to_grid_id = task
+        if self.dihedral_ranges:
+            for d, d_range in zip(to_grid_id, self.dihedral_ranges):
+                low, high = d_range
+                if d < low or d > high:
+                    if self.verbose:
+                        print(f"Task with target grid_id {to_grid_id} skipped because {d} doesn't fit in limited range {low}--{high}")
+                    return False
+        return True
+
     def push_initial_opt_tasks(self):
         """
         Push a set of initial tasks to self.opt_queue
@@ -255,9 +293,10 @@ class DihedralScanner:
         for m in self.init_coords_M:
             from_grid_id = to_grid_id = self.get_dihedral_id(m)
             task = (m, from_grid_id, to_grid_id)
-            self.opt_queue.push(task)
+            if self.validate_task(task):
+                self.opt_queue.push(task)
         if self.verbose:
-            print("%d initial tasks pushed to opt_queue" % len(self.init_coords_M))
+            print(f"{len(self.init_coords_M)} initial tasks pushed to opt_queue")
 
     def save_task_cache(self, job_path, m_init, m_final, final_energy):
         """
@@ -267,7 +306,6 @@ class DihedralScanner:
         task_result = {'initial_geo': m_init.xyzs[0], 'final_geo': m_final.xyzs[0], 'final_energy': final_energy}
         with open(os.path.join(self.rootpath, job_path, self.task_result_fname), 'wb') as pickleout:
             pickle.dump(task_result, pickleout)
-
 
     def restore_task_cache(self):
         """
@@ -288,6 +326,8 @@ class DihedralScanner:
         assert len(self.dihedrals) == len(scanner_settings['dihedrals']), err_msg
         assert np.array_equal(np.array(self.dihedrals), np.array(scanner_settings['dihedrals'])), err_msg
         assert np.array_equal(self.grid_spacing, scanner_settings['grid_spacing']), err_msg
+        assert self.energy_decrease_thresh == scanner_settings['energy_decrease_thresh'], err_msg
+        assert np.array_equal(self.dihedral_ranges, scanner_settings['dihedral_ranges']), err_msg
         # read all finished jobs in tmp folder
         self.tmp_folder_dict = dict()
         n_cache = 0
@@ -319,7 +359,8 @@ class DihedralScanner:
         assert hasattr(self, 'grid_ids'), 'Call self.setup_grid() first'
         os.mkdir(self.tmp_folder_name)
         # save current scan settings
-        scanner_settings = {'dihedrals': self.dihedrals, 'grid_spacing': self.grid_spacing}
+        scanner_settings = {'dihedrals': self.dihedrals, 'grid_spacing': self.grid_spacing,
+                            'energy_decrease_thresh': self.energy_decrease_thresh, 'dihedral_ranges': self.dihedral_ranges}
         settings_fname = os.path.join(self.rootpath, self.tmp_folder_name, 'scanner_settings.json')
         with open(settings_fname, 'w') as jsonfile:
             json.dump(scanner_settings, jsonfile)
@@ -420,7 +461,8 @@ class DihedralScanner:
         m = Molecule()
         m.elem = list(self.engine.M.elem)
         m.qm_energies, m.xyzs, m.comms = [], [], []
-        for gid in self.grid_ids:
+        # only print grid with energies
+        for gid in sorted(self.grid_energies.keys()):
             m.qm_energies.append(self.grid_energies[gid])
             m.xyzs.append(self.grid_final_geometries[gid])
             m.comms.append("Dihedral %s Energy %.9f" % (str(gid), self.grid_energies[gid]))
