@@ -73,8 +73,8 @@ class Psi4QCEngineEngine(QMEngine):
         """ Load the optimized geometry and energy from self.out_json_dict into a new molecule object and return """
         out_json_dict = self.stored_results.pop(os.getcwd())
         mdict = out_json_dict['final_molecule']
-        #import IPython
-        #IPython.embed()
+        if not mdict:
+            raise RuntimeError("QCEngine failed.\n" + str(out_json_dict))
         m = Molecule()
         m.xyzs = [np.array(mdict['geometry']).reshape(-1, 3) * bohr2ang]
         m.elem = mdict['symbols']
