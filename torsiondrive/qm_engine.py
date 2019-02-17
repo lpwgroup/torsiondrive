@@ -1,6 +1,5 @@
 import os
 import subprocess
-
 import numpy as np
 from collections import OrderedDict
 from geometric.nifty import uncommadash
@@ -141,9 +140,13 @@ class QMEngine(object):
 
     def load_geomeTRIC_output(self):
         """ Load the optimized geometry and energy into a new molecule object and return """
-        m = Molecule('opt.xyz')
-        with open('energy.txt') as infile:
-            m.qm_energies = [float(infile.read())]
+        # the name of the file is consistent with the --prefix tdavcft option,
+        # this also requires the input file NOT be named to sth like tdavcft.in
+        # otherwise the output will become tdavcft_optim.xyz
+        if not os.path.isfile('tdavcft.xyz'):
+            raise OSError("geomeTRIC output tdavcft.xyz file not found")
+        m = Molecule('tdavcft.xyz')[-1]
+        m.qm_energies = [float(m.comms[0].rsplit(maxsplit=1)[-1])]
         return m
 
     def launch_optimize(self, job_path=None):
@@ -329,7 +332,7 @@ class EnginePsi4(QMEngine):
         # step 2
         self.write_input('input.dat')
         # step 3
-        self.run('geometric-optimize --qccnv --reset --epsilon 0.0 --psi4 input.dat constraints.txt > optimize.log', input_files=['input.dat', 'constraints.txt'], output_files=['optimize.log', 'opt.xyz', 'energy.txt'])
+        self.run('geometric-optimize --prefix tdavcft --qccnv --reset --epsilon 0.0 --psi4 input.dat constraints.txt > optimize.log', input_files=['input.dat', 'constraints.txt'], output_files=['optimize.log', 'opt.xyz', 'energy.txt'])
 
     def load_native_output(self, filename='output.dat'):
         """ Load the optimized geometry and energy into a new molecule object and return """
@@ -423,7 +426,7 @@ class EngineQChem(QMEngine):
         self.M.xyzs = [np.array(coords, dtype=float)]
         self.M.build_topology()
 
-    def write_input(self, filename='qc.in'):
+    def write_input(self, filename='job.in'):
         """ Write QChem input using Molecule Class """
         assert hasattr(self, 'qchem_temp'), "self.qchem_temp not set, call load_input() first"
         with open(filename, 'w') as outfile:
@@ -470,7 +473,7 @@ class EngineQChem(QMEngine):
         # step 2
         self.write_input('qc.in')
         # step 3
-        self.run('geometric-optimize --qccnv --reset --epsilon 0.0 --qchem qc.in constraints.txt > optimize.log', input_files=['qc.in', 'constraints.txt'], output_files=['optimize.log', 'opt.xyz', 'energy.txt'])
+        self.run('geometric-optimize --prefix tdavcft --qccnv --reset --epsilon 0.0 --qchem qc.in constraints.txt > optimize.log', input_files=['qc.in', 'constraints.txt'], output_files=['optimize.log', 'opt.xyz', 'energy.txt'])
 
     def load_native_output(self, filename='qc.out'):
         """ Load the optimized geometry and energy into a new molecule object and return """
@@ -587,7 +590,7 @@ class EngineTerachem(QMEngine):
         # step 2
         self.write_input()
         # step 3
-        self.run('geometric-optimize --qccnv --reset --epsilon 0.0 run.in constraints.txt > optimize.log', input_files=['run.in', self.tera_geo_file, 'constraints.txt'], output_files=['optimize.log', 'opt.xyz', 'energy.txt'])
+        self.run('geometric-optimize --prefix tdavcft --qccnv --reset --epsilon 0.0 run.in constraints.txt > optimize.log', input_files=['run.in', self.tera_geo_file, 'constraints.txt'], output_files=['optimize.log', 'opt.xyz', 'energy.txt'])
 
     def load_native_output(self):
         """ Load the optimized geometry and energy into a new molecule object and return """
