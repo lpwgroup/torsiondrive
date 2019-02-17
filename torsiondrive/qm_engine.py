@@ -332,7 +332,7 @@ class EnginePsi4(QMEngine):
         # step 2
         self.write_input('input.dat')
         # step 3
-        self.run('geometric-optimize --prefix tdrive --qccnv --reset --epsilon 0.0 --psi4 input.dat constraints.txt > optimize.log', input_files=['input.dat', 'constraints.txt'], output_files=['optimize.log', 'opt.xyz', 'energy.txt'])
+        self.run('geometric-optimize --prefix tdrive --qccnv --reset --epsilon 0.0 --psi4 input.dat constraints.txt > optimize.log', input_files=['input.dat', 'constraints.txt'], output_files=['optimize.log', 'tdrive.xyz'])
 
     def load_native_output(self, filename='output.dat'):
         """ Load the optimized geometry and energy into a new molecule object and return """
@@ -473,7 +473,7 @@ class EngineQChem(QMEngine):
         # step 2
         self.write_input('qc.in')
         # step 3
-        self.run('geometric-optimize --prefix tdrive --qccnv --reset --epsilon 0.0 --qchem qc.in constraints.txt > optimize.log', input_files=['qc.in', 'constraints.txt'], output_files=['optimize.log', 'opt.xyz', 'energy.txt'])
+        self.run('geometric-optimize --prefix tdrive --qccnv --reset --epsilon 0.0 --qchem qc.in constraints.txt > optimize.log', input_files=['qc.in', 'constraints.txt'], output_files=['optimize.log', 'tdrive.xyz'])
 
     def load_native_output(self, filename='qc.out'):
         """ Load the optimized geometry and energy into a new molecule object and return """
@@ -590,7 +590,7 @@ class EngineTerachem(QMEngine):
         # step 2
         self.write_input()
         # step 3
-        self.run('geometric-optimize --prefix tdrive --qccnv --reset --epsilon 0.0 run.in constraints.txt > optimize.log', input_files=['run.in', self.tera_geo_file, 'constraints.txt'], output_files=['optimize.log', 'opt.xyz', 'energy.txt'])
+        self.run('geometric-optimize --prefix tdrive --qccnv --reset --epsilon 0.0 run.in constraints.txt > optimize.log', input_files=['run.in', self.tera_geo_file, 'constraints.txt'], output_files=['optimize.log', 'tdrive.xyz'])
 
     def load_native_output(self):
         """ Load the optimized geometry and energy into a new molecule object and return """
