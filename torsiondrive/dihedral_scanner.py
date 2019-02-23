@@ -247,7 +247,7 @@ class DihedralScanner:
                     if len(self.dihedrals) == 2:
                         print(self.draw_ramachandran_plot())
                     else:
-                        print(self.draw_ascii_image())
+                        print(self.draw_ansi_image())
                 except UnicodeEncodeError:
                     print("Warning: UnicodeEncodeError occured, status map not printed.")
                 last_print_time = current_time
@@ -519,10 +519,10 @@ class DihedralScanner:
     # Status Drawing Utilites
     #----------------------------------
 
-    def draw_ascii_image(self):
-        """ Return a string with ASCII colors showing current running status """
+    def draw_ansi_image(self):
+        """ Return a string with ANSI colors showing current running status """
         if not hasattr(self, 'grid_energies') or not hasattr(self, 'opt_queue'):
-            return "draw_ascii_image failed: grid_energies or opt_queue not available"
+            return "draw_ansi_image failed: grid_energies or opt_queue not available"
         result_str = ""
         count = 0
         running_to_job_ids = set(to_grid_id for m, from_grid_id, to_grid_id in self.opt_queue)
@@ -580,4 +580,3 @@ class DihedralScanner:
         for y in grid_y[::-1]:
             line = '%4d '%y + ''.join(status_symbols[grid_status[(x,y)]] for x in grid_x) + '\n'
             result_str += line
-        return result_str.encode('utf-8')
