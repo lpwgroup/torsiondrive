@@ -5,9 +5,6 @@
 #| Minimum-energy multi-dimensional torsion scan |#
 #|         Yudong Qiu, Lee-Ping Wang             |#
 #================================================#
-
-from __future__ import print_function, division
-
 import collections
 import copy
 import itertools
@@ -37,19 +34,29 @@ class DihedralScanner:
     """
     DihedralScanner class is designed to create a dihedral grid, and fill in optimized geometries and energies
     into the grid, by running wavefront propagations of constrained optimizations
+
+    parameters
+    ----------
+    engine: QMEngine() instance
+        An QMEngine object, e.g. EnginePsi4, EngineQChem or EngineTerachem
+    dihedrals: List[(d1, d2, d3, d4), ..]
+        list of dihedral index tuples (d1, d2, d3, d4). The length of list determines the dimension of the grid
+        i.e. dihedrals = [(0,1,2,3)] --> 1-D scan,  dihedrals = [(0,1,2,3),(1,2,3,4)] --> 2-D Scan
+    grid_spacing: Int
+        Distance (in Degrees) between grid points, correspond to each dihedral, every value must be a divisor of 360
+    init_coords_M: geometric.molecule.Molecule() instance
+        A Molecule constains a series of initial geometries to start with
+    energy_decrease_thresh: Float
+        The threshold of the smallest energy decrease amount to trigger activating optimizations from grid point.
+    dihedral_ranges: List[(lower, upper), ..]
+        A list of dihedral range limits as a pair (lower, upper), each range corresponds to the dihedrals in input.
+    verbose: bool
+        let methods print more information when running
     """
     def __init__(self, engine, dihedrals, grid_spacing, init_coords_M=None, energy_decrease_thresh=0.00001, dihedral_ranges=None, verbose=False):
-        """
-        inputs:
-        -------
-        engine: An QMEngine object, e.g. EnginePsi4, EngineQChem or EngineTerachem
-        dihedrals: list of dihedral index tuples (d1, d2, d3, d4). The length of list determines the dimension of the grid
-                i.e. dihedrals = [(0,1,2,3)] --> 1-D scan,  dihedrals = [(0,1,2,3),(1,2,3,4)] --> 2-D Scan
-        grid_spacing: Distance (in Degrees) between grid points, correspond to each dihedral, every value must be a divisor of 360
-        init_coords_M: a geometric.molecule.Molecule object, constains a series of initial geometries to start with
-        verbose: let methods print more information when running
-        """
         self.engine = engine
+        # store verbose flag for later printing
+        self.verbose = verbose
         # validate input dihedral format
         self.dihedrals = []
         for dihedral in dihedrals:
@@ -63,22 +70,14 @@ class DihedralScanner:
         assert len(grid_spacing) == self.grid_dim, f"Number of grid spacings {len(grid_spacing)} is not consistent with number of dihedrals {self.grid_dim}"
         self.grid_spacing = tuple(map(int, grid_spacing))
         self.setup_grid()
-        # validate dihedral ranges
-        if dihedral_ranges:
-            assert all(l >= -180 and h <= 180 and l < h for l, h in dihedral_ranges), \
-                f'Dihedral ranges {dihedral_ranges} mistaken, range should be within [-180, 180]'
-            assert len(dihedral_ranges) == len(self.dihedrals), f'Dihedral ranges {dihedral_ranges} do not have consistent length to dihedrals {self.dihedrals}'
-            if verbose:
-                print(f"Dihedral scan initialized with range limit {dihedral_ranges}")
-            self.dihedral_ranges = copy.deepcopy(dihedral_ranges)
-        else:
-            self.dihedral_ranges = []
+        # validate dihedral ranges and build mask
+        self.dihedral_ranges = dihedral_ranges if dihedral_ranges is not None else [] # for sanity check
+        self.dihedral_mask = self.build_dihedral_mask(dihedral_ranges)
+        # create a optiimization job queue
         self.opt_queue = PriorityQueue()
         # try to use init_coords_M first, if not given, use M in engine's template
         # `for m in init_coords_M` doesn't work since m.measure_dihedrals will fail because it has different m.xyzs shape
         self.init_coords_M = [init_coords_M[i] for i in range(len(init_coords_M))] if init_coords_M is not None else [self.engine.M]
-        # store verbose flag for later printing
-        self.verbose = verbose
         # dictionary that stores the lowest energy for each grid point
         self.grid_energies = dict()
         # dictionary that stores the geometries corresponding to lowest energy for each grid point
@@ -104,11 +103,53 @@ class DihedralScanner:
         1-D: grid_ids = ( (-165, ), (-150, ), ... (180, )  )
         2-D: grid_ids = ( (-165,-165), (-165,-150), ... (180,180)  )
         This function is called by the initializer.
+
+        self.grid_axes is also initialized, to be a full range of grid values for each dihedral, i.e.,
+        1-D: grid_axes = [range(-165, 195, 15)]
+        2-D: grid_axes = [range(-165, 195, 15), range(-165, 195, 15)]
         """
         self.grid_axes = []
         for gs in self.grid_spacing:
             self.grid_axes.append(range(-180+gs, 180+gs, gs))
         self.grid_ids = tuple(itertools.product(*self.grid_axes))
+
+    def build_dihedral_mask(self, dihedral_ranges):
+        """
+        Build a dihedral mask based on specified ranges
+
+        Parameters
+        ----------
+        dihedral_ranges: List[(lower: Int, upper: Int), ..]
+            The range limits corresponding to each dihedral angle
+            A full dihedral range is [-180, 180]
+            The upper limit up to 360 is supported for the purpose of specifying range limits
+            crossing the boundary, e.g. [80, 240], which effectively become [-180, 120] + [80, 180]
+
+        Returns
+        -------
+        dihedral_mask: List[set(), ..]
+            The dihedral mask is a list of sets, each set contains all available values for one dihedral angle
+
+        Note
+        ----
+        This function should be called after self.setup_grid()
+        """
+        if not dihedral_ranges: return None
+        assert all(l >= -180 and u <= 360 and l < u for l, u in dihedral_ranges), \
+            f'Dihedral ranges {dihedral_ranges} mistaken, range should be within [-180, 360]'
+        assert len(dihedral_ranges) == len(self.dihedrals), f'Dihedral ranges {dihedral_ranges} do not have consistent length to dihedrals {self.dihedrals}'
+        if self.verbose:
+            print(f"Dihedral scan initialized with range limit {dihedral_ranges}")
+        dihedral_mask = []
+        for (l, u), ax in zip(dihedral_ranges, self.grid_axes):
+            if u > 180:
+                # the "split range" case
+                dmask = {g for g in ax if g >= l or g <= u-360}
+            else:
+                # the normal case
+                dmask = {g for g in ax if l <= g <= u}
+            dihedral_mask.append(dmask)
+        return dihedral_mask
 
     #--------------------
     #  General methods
@@ -202,10 +243,13 @@ class DihedralScanner:
             current_time = time.time()
             if self.verbose and current_time - last_print_time > min_print_interval:
                 print("Scan Status at %d s" % (current_time-start_time))
-                if len(self.dihedrals) == 2:
-                    print(self.draw_ramachandran_plot())
-                else:
-                    print(self.draw_ascii_image())
+                try:
+                    if len(self.dihedrals) == 2:
+                        print(self.draw_ramachandran_plot())
+                    else:
+                        print(self.draw_ascii_image())
+                except UnicodeEncodeError:
+                    print("Warning: UnicodeEncodeError occured, status map not printed.")
                 last_print_time = current_time
             # Launch all jobs in self.opt_queue
             # new jobs will be put into self.running_job_path_info
@@ -276,12 +320,11 @@ class DihedralScanner:
             True if the task is valid
         """
         m, from_grid_id, to_grid_id = task
-        if self.dihedral_ranges:
-            for d, d_range in zip(to_grid_id, self.dihedral_ranges):
-                low, high = d_range
-                if d < low or d > high:
+        if self.dihedral_mask is not None:
+            for d, dmask in zip(to_grid_id, self.dihedral_mask):
+                if d not in dmask:
                     if self.verbose:
-                        print(f"Task with target grid_id {to_grid_id} skipped because {d} doesn't fit in limited range {low}--{high}")
+                        print(f"Task with target grid_id {to_grid_id} skipped because {d} doesn't fit in range limit")
                     return False
         return True
 
@@ -537,4 +580,4 @@ class DihedralScanner:
         for y in grid_y[::-1]:
             line = '%4d '%y + ''.join(status_symbols[grid_status[(x,y)]] for x in grid_x) + '\n'
             result_str += line
-        return result_str
+        return result_str.encode('utf-8')
