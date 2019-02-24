@@ -56,6 +56,30 @@ def test_dihedral_scanner_methods():
     geo, start_gid, end_gid  = scanner.opt_queue.pop()
     assert start_gid == end_gid
 
+def test_dihedral_scanner_range_masks():
+    """
+    Test dihedral scanner range limit implemented as masks
+    """
+    # setup a scanner
+    m = Molecule()
+    m.elem = ['H'] * 5
+    m.xyzs = [np.array([[0, 0, 0], [0, 1, 0], [0, 0, 1], [1, 1, 1], [1, 0, 0]], dtype=float)*0.5]
+    m.build_topology()
+    engine = QMEngine()
+    dihedrals = [[0,1,2,3], [1,2,3,4]]
+    # two ranges are tested, one is normal, one is "split" crossing boundaries
+    dihedral_ranges = [[-120, 120], [150, 240]]
+    scanner = DihedralScanner(engine, dihedrals=dihedrals, grid_spacing=[30, 30], init_coords_M=m, dihedral_ranges=dihedral_ranges)
+    # check dihedral masks
+    assert scanner.dihedral_ranges == dihedral_ranges
+    assert scanner.dihedral_mask[0] == {-120, -90, -60, -30, 0, 30, 60, 90, 120}
+    assert scanner.dihedral_mask[1] == {-150, -120, 150, 180}
+    # test validate_task() function
+    task1 = (m, (-120, 120), (-120, 150))
+    assert scanner.validate_task(task1) == True
+    task2 = (m, (-120, 60), (-120, 90))
+    assert scanner.validate_task(task2) == False
+
 def test_qm_engine():
     """
     Testing QMEngine Class
