@@ -53,7 +53,7 @@ def load_dihedralfile(dihedralfile, zero_based_numbering=False):
     dihedral_ranges: list of list of 2 numbers
         dihedral ranges should be either empty (no limit), or two numbers [low, high],
         e.g. [[-120, 120], [-90, 150]]
-        low >= -180, high <= 180, low < high
+        requirements: low >= -180, high <= 360, low < high
     """
     dihedral_idxs = []
     dihedral_ranges = []
@@ -86,7 +86,7 @@ def load_dihedralfile(dihedralfile, zero_based_numbering=False):
     # check all dihedrals valid (>= 0)
     assert all(i >= 0 for d in dihedral_idxs for i in d), f'Dihedral indices {dihedral_idxs} error, all should >= 0'
     # check all ranges valid [-180, 180]
-    assert all(low >= -180 and high <= 180 and low < high for low, high in dihedral_ranges), f'Dihedral ranges {dihedral_ranges} mistaken, range should be within [-180, 180]'
+    assert all(low >= -180 and high <= 360 and low < high for low, high in dihedral_ranges), f'Dihedral ranges {dihedral_ranges} mistaken, range should be within [-180, 180]'
     # check dihedral_idxs and dihedral_ranges have same length
     if dihedral_ranges != []:
         assert len(dihedral_idxs) == len(dihedral_ranges), f'Dihedral ranges {dihedral_ranges} length not consistent with dihedral idxs {dihedral_idxs}'
