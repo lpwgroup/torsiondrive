@@ -60,7 +60,7 @@ def make_constraints_dict(constraints_string):
                 ctype = ls[0]
                 if ctype not in ['bond','distance','angle','dihedral','xyz']:
                     raise ValueError('Only bond, distance, angle, and dihedral, xyz constraints are supported')
-                indices = [int(i)-1 for i in ls[1:]] if ctype is not 'xyz' else uncommadash(ls[1])
+                indices = [int(i)-1 for i in ls[1:]] if ctype != 'xyz' else uncommadash(ls[1])
                 assert all(i >= 0 for i in indices), f'Invalid atom index in line {line}, one-indexed should start from 1'
                 spec_dict = { 'type': ctype, 'indices': indices }
                 constraints_dict[constraints_mode].append(spec_dict)

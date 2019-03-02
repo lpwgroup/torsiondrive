@@ -87,7 +87,7 @@ def test_make_constraints_dict():
     $set
     bond 0 1 1.0
     '''
-    with pytest.raises(ValueError):
+    with pytest.raises(AssertionError):
         make_constraints_dict(wrong_constraits_string)
 
 def test_check_conflict_constraits():
