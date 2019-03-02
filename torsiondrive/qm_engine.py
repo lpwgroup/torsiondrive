@@ -2,7 +2,7 @@ import os
 import subprocess
 import numpy as np
 from geometric.molecule import Molecule
-from copy import deepcopy
+from torsiondrive.extra_constraints import build_geometric_constraint_string, build_terachem_constraint_string
 
 def check_all_float(iterable):
     try:
@@ -41,27 +41,13 @@ class QMEngine(object):
 
     def write_constraints_txt(self):
         """ write a constraints.txt file for geomeTRIC """
-        constraints_string = ''
         if self.extra_constraints is None:
-            constraints_string += "$set\n"
+            constraints_string = "$set\n"
             for d1, d2, d3, d4, v in self.dihedral_idx_values:
                 # geomeTRIC use atomic index starting from 1
                 constraints_string += f"dihedral {d1+1} {d2+1} {d3+1} {d4+1} {v}\n"
         else:
-            for key, value_list in self.extra_constraints.items():
-                if key == 'freeze':
-                    if len(value_list) > 0:
-                        constraints_string += '$' + key + '\n'
-                        for spec_tuple in value_list:
-                            constraints_string += ' '.join(spec_tuple) + '\n'
-                elif key == 'set':
-                    constraints_string += '$' + key + '\n'
-                    for spec_tuple in value_list:
-                        constraints_string += ' '.join(spec_tuple) + '\n'
-                    for d1, d2, d3, d4, v in self.dihedral_idx_values:
-                        constraints_string += ("dihedral %d %d %d %d %f\n" % (d1+1, d2+1, d3+1, d4+1, v))
-                else:
-                    raise KeyError("constraints key %s is not recognized" % key)
+            constraints_string = build_geometric_constraint_string(self.extra_constraints, self.dihedral_idx_values)
         with open('constraints.txt', 'w') as outfile:
             outfile.write(constraints_string)
 
@@ -474,7 +460,6 @@ class EngineTerachem(QMEngine):
         2. run the job
         """
         assert self.temp_type == 'optimize', "To use native optimization, the input file be an opt job"
-
         if self.extra_constraints is None:
             self.constraintsStr = '\n$constraint_set\n'
             for d1, d2, d3, d4, v in self.dihedral_idx_values:
@@ -482,24 +467,7 @@ class EngineTerachem(QMEngine):
                 self.constraintsStr += 'dihedral %f %d_%d_%d_%d\n' % (v, d1+1, d2+1, d3+1, d4+1)
             self.constraintsStr += '$end\n'
         else:
-            self.constraintsStr = '\n'
-            for key, value_list in self.extra_constraints.items():
-                if key == 'freeze':
-                    if len(value_list) > 0:
-                        self.constraintsStr += '$constraint_freeze\n'
-                        for spec_tuple in value_list:
-                            self.constraintsStr += '%s %s\n' % (spec_tuple[0].replace('distance', 'bond'), '_'.join(spec_tuple[1:]))
-                        self.constraintsStr += '$end\n\n'
-                elif key == 'set':
-                    self.constraintsStr += '$constraint_set\n'
-                    for spec_tuple in value_list:
-                        self.constraintsStr += '%s %s %s\n' % (spec_tuple[0].replace('distance', 'bond'), spec_tuple[-1], '_'.join(spec_tuple[1:-1]))
-                    for d1, d2, d3, d4, v in self.dihedral_idx_values:
-                        self.constraintsStr += 'dihedral %f %d_%d_%d_%d\n' % (v, d1+1, d2+1, d3+1, d4+1)
-                    self.constraintsStr += '$end\n'
-                else:
-                    raise KeyError("constraints key %s is not recognized" % key)
-
+            self.constraintsStr = build_terachem_constraint_string(self.extra_constraints, self.dihedral_idx_values)
         # write input file
         self.write_input()
         # run the job

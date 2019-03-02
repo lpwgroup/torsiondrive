@@ -3,7 +3,7 @@
 
 from torsiondrive.dihedral_scanner import DihedralScanner
 from torsiondrive.qm_engine import EnginePsi4, EngineQChem, EngineTerachem
-from torsiondrive.extra_constraints import make_constraints_dict
+from torsiondrive.extra_constraints import make_constraints_dict, check_conflict_constraits
 from geometric.molecule import Molecule
 
 def load_dihedralfile(dihedralfile, zero_based_numbering=False):
@@ -135,7 +135,9 @@ def main():
     constraints_dict = None
     if args.constraints is not None:
         with open(args.constraints) as fin:
-            constraints_dict = make_constraints_dict(fin.read(), exclude=dihedral_idxs)
+            constraints_dict = make_constraints_dict(fin.read())
+            # check if there are extra constraints conflict with the specified dihedral angles
+            check_conflict_constraits(constraints_dict, dihedral_idxs)
 
     # format grid spacing
     n_grid_spacing = len(args.grid_spacing)
