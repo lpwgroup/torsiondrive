@@ -16,5 +16,6 @@ def test_make_constraints_dict():
     constraints_dict = make_constraints_dict(constraits_string)
     assert len(constraints_dict['set']) == 1
     spec_dict = constraints_dict['set'][0]
-    assert spec_dict['type'] == ('bond', [0,1])
+    assert spec_dict['type'] == 'bond'
+    assert spec_dict['indices'] == [0, 1]
     assert spec_dict['value'] == 1.0

@@ -18,10 +18,12 @@ def make_constraints_dict(constraints_string):
         of geomeTRIC. Example:
         constraint_dict = {
             'freeze': [{
-                "type": ("xyz", [0, 1, 2, 3])
+                "type": "xyz",
+                "indices": [0, 1, 2]
             }],
             'set': [{
-                "type": ("angle", [1, 0, 4]),
+                "type": "angle",
+                "indices": [1, 0, 4],
                 "value": 110.0
             }]
         }
@@ -58,8 +60,8 @@ def make_constraints_dict(constraints_string):
                 ctype = ls[0]
                 if ctype not in ['bond','distance','angle','dihedral','xyz']:
                     raise ValueError('Only bond, distance, angle, and dihedral, xyz constraints are supported')
-                idxs = [int(i)-1 for i in ls[1:]] if ctype is not 'xyz' else uncommadash(ls[1])
-                spec_dict = { 'type': (ctype, idxs) }
+                indices = [int(i)-1 for i in ls[1:]] if ctype is not 'xyz' else uncommadash(ls[1])
+                spec_dict = { 'type': ctype, 'indices': indices }
                 constraints_dict[constraints_mode].append(spec_dict)
             elif constraints_mode == 'set':
                 ls = line.split()
@@ -67,29 +69,29 @@ def make_constraints_dict(constraints_string):
                 # we don't support setting xyz here because it's confusing
                 if ctype not in ['bond','distance','angle','dihedral']:
                     raise ValueError('Only bond, distance, angle, and dihedral, constraints are supported by Set')
-                idxs = [int(i)-1 for i in ls[1:-1]]
+                indices = [int(i)-1 for i in ls[1:-1]]
                 value = float(ls[-1])
-                spec_dict = { 'type': (ctype, idxs), 'value': value }
+                spec_dict = { 'type': ctype, 'indices': indices, 'value': value }
                 constraints_dict[constraints_mode].append(spec_dict)
             else:
                 raise ValueError(f"Constraints mode {constraints_mode} is not supported")
     return constraints_dict
 
-def check_conflict_constraits(constraints_dict, dihedral_idxs):
+def check_conflict_constraits(constraints_dict, dihedral_indices):
     """
     Utility function to check if any extra constraints in constraints_dict is conflict with the scanning dihedrals
     """
-    distinct_dihedrals = set(tuple(min(d, d[::-1])) for d in dihedral_idxs)
+    distinct_dihedrals = set(tuple(min(d, d[::-1])) for d in dihedral_indices)
     for constraits_list in constraints_dict.values():
         for spec_dict in constraits_list:
-            ctype, idxs = spec_dict['type']
-            if ctype == 'dihedral' and tuple(min(idxs, idxs[::-1])) in distinct_dihedrals:
-                raise ValueError(f"Conflict dihedral constraints found in:\n{spec_dict}\n with {dihedral_idxs}")
+            ctype, indices = spec_dict['type'], spec_dict['indices']
+            if ctype == 'dihedral' and tuple(min(indices, indices[::-1])) in distinct_dihedrals:
+                raise ValueError(f"Conflict dihedral constraints found in:\n{spec_dict}\n with {dihedral_indices}")
             if ctype == 'xyz':
-                idxs_set = set(idxs)
-                # check if all 4 idxs defining a dihedral are froze
-                if any(set(d).issubset(idxs_set) for d in distinct_dihedrals):
-                    raise ValueError(f"Conflict xyz constraints found in:\n{spec_dict}\n with {dihedral_idxs}")
+                indices_set = set(indices)
+                # check if all 4 indices defining a dihedral are froze
+                if any(set(d).issubset(indices_set) for d in distinct_dihedrals):
+                    raise ValueError(f"Conflict xyz constraints found in:\n{spec_dict}\n with {dihedral_indices}")
 
 def build_geometric_constraint_string(constraints_dict, dihedral_idx_values=None):
     """
@@ -115,18 +117,18 @@ def build_geometric_constraint_string(constraints_dict, dihedral_idx_values=None
         if len(spec_list) > 0:
             constraints_string += '$freeze\n'
             for spec_dict in spec_list:
-                ctype, idxs = spec_dict['type']
+                ctype, indices = spec_dict['type'], spec_dict['indices']
                 if ctype == 'xyz':
-                    constraints_string += f'xyz {commadash(idxs)}' + '\n'
+                    constraints_string += f'xyz {commadash(indices)}' + '\n'
                 else:
-                    constraints_string += f'{ctype} ' + ' '.join(map(str, [i+1 for i in idxs])) + '\n'
+                    constraints_string += f'{ctype} ' + ' '.join(map(str, [i+1 for i in indices])) + '\n'
     # write the "$set" section
     for spec_list in constraints_dict.get('set',[]):
         if len(spec_list) > 0:
             constraints_string += '$set\n'
         for spec_dict in spec_list:
-            (ctype, idxs), value = spec_dict['type'], spec_dict['value']
-            constraints_string += f'{ctype} ' + ' '.join(map(str, [i+1 for i in idxs])) + f' {value}\n'
+            ctype, indices, value = spec_dict['type'], spec_dict['indices'], spec_dict['value']
+            constraints_string += f'{ctype} ' + ' '.join(map(str, [i+1 for i in indices])) + f' {value}\n'
     # write dihedral_idx_values as constraints
     if dihedral_idx_values is not None:
         if len(constraints_dict.get('set',[])) == 0:
@@ -160,13 +162,13 @@ def build_terachem_constraint_string(constraints_dict, dihedral_idx_values=None)
         if len(spec_list) > 0:
             constraints_string += '$constraint_freeze\n'
             for spec_dict in spec_list:
-                ctype, idxs = spec_dict['type']
+                ctype, indices = spec_dict['type'], spec_dict['indices']
                 if ctype == 'xyz':
-                    constraints_string += f'xyz {commadash(idxs)}' + '\n'
+                    constraints_string += f'xyz {commadash(indices)}' + '\n'
                 else:
                     # TeraChem only take "bond" keyword
                     if ctype == 'distance': ctype = 'bond'
-                    constraints_string += f'{ctype} ' + '_'.join(map(str, [i+1 for i in idxs])) + '\n'
+                    constraints_string += f'{ctype} ' + '_'.join(map(str, [i+1 for i in indices])) + '\n'
             constraints_string += '$end\n\n'
     # write the "$constraint_set" section
     set_section_open = False
@@ -175,10 +177,10 @@ def build_terachem_constraint_string(constraints_dict, dihedral_idx_values=None)
             constraints_string += '$constraint_set\n'
             set_section_open = True
             for spec_dict in spec_list:
-                (ctype, idxs), value = spec_dict['type'], spec_dict['value']
+                ctype, indices, value = spec_dict['type'], spec_dict['indices'], spec_dict['value']
                 # TeraChem only take "bond" keyword
                 if ctype == 'distance': ctype = 'bond'
-                constraints_string += f'{ctype} {value} ' + '_'.join(map(str, [i+1 for i in idxs])) + '\n'
+                constraints_string += f'{ctype} {value} ' + '_'.join(map(str, [i+1 for i in indices])) + '\n'
     # write dihedral_idx_values as constraints
     if dihedral_idx_values is not None:
         if set_section_open is False:
