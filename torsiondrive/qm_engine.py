@@ -45,7 +45,7 @@ class QMEngine(object):
             constraints_string = "$set\n"
             for d1, d2, d3, d4, v in self.dihedral_idx_values:
                 # geomeTRIC use atomic index starting from 1
-                constraints_string += f"dihedral {d1+1} {d2+1} {d3+1} {d4+1} {v}\n"
+                constraints_string += f"dihedral {d1+1} {d2+1} {d3+1} {d4+1} {float(v)}\n"
         else:
             constraints_string = build_geometric_constraint_string(self.extra_constraints, self.dihedral_idx_values)
         with open('constraints.txt', 'w') as outfile:
@@ -464,7 +464,7 @@ class EngineTerachem(QMEngine):
             self.constraintsStr = '\n$constraint_set\n'
             for d1, d2, d3, d4, v in self.dihedral_idx_values:
                 # TeraChem use atom index starting from 1
-                self.constraintsStr += 'dihedral %f %d_%d_%d_%d\n' % (v, d1+1, d2+1, d3+1, d4+1)
+                self.constraintsStr += f"dihedral {float(v)} {d1+1}_{d2+1}_{d3+1}_{d4+1}\n"
             self.constraintsStr += '$end\n'
         else:
             self.constraintsStr = build_terachem_constraint_string(self.extra_constraints, self.dihedral_idx_values)
@@ -491,5 +491,5 @@ class EngineTerachem(QMEngine):
         """ Load the optimized geometry and energy into a new molecule object and return """
         m = Molecule('scr/optim.xyz')[-1]
         # read the energy from optim.xyz comment line
-        m.qm_energies = [float(m.comms[0].split(None, 1)[0])]
+        m.qm_energies = [float(m.comms[0].split(maxsplit=1)[0])]
         return m
