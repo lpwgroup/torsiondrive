@@ -54,7 +54,6 @@ def make_constraints_dict(constraints_string):
             if constraints_mode == None:
                 raise ValueError(f'Trying to read the constraint line\n\n{line}\n\n, but constraint mode is not set')
             elif constraints_mode == 'freeze':
-                spec_dict = {}
                 ls = line.split()
                 ctype = ls[0]
                 if ctype not in ['bond','distance','angle','dihedral','xyz']:
@@ -63,6 +62,8 @@ def make_constraints_dict(constraints_string):
                 spec_dict = { 'type': (ctype, idxs) }
                 constraints_dict[constraints_mode].append(spec_dict)
             elif constraints_mode == 'set':
+                ls = line.split()
+                ctype = ls[0]
                 # we don't support setting xyz here because it's confusing
                 if ctype not in ['bond','distance','angle','dihedral']:
                     raise ValueError('Only bond, distance, angle, and dihedral, constraints are supported by Set')
