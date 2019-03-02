@@ -58,8 +58,8 @@ def make_constraints_dict(constraints_string):
             elif constraints_mode == 'freeze':
                 ls = line.split()
                 ctype = ls[0]
-                if ctype not in ['bond','distance','angle','dihedral','xyz']:
-                    raise ValueError('Only bond, distance, angle, and dihedral, xyz constraints are supported')
+                if ctype not in ['distance','angle','dihedral','xyz']:
+                    raise ValueError('Only distance, angle, and dihedral, xyz constraints are supported')
                 indices = [int(i)-1 for i in ls[1:]] if ctype != 'xyz' else uncommadash(ls[1])
                 assert all(i >= 0 for i in indices), f'Invalid atom index in line {line}, one-indexed should start from 1'
                 spec_dict = { 'type': ctype, 'indices': indices }
@@ -68,8 +68,8 @@ def make_constraints_dict(constraints_string):
                 ls = line.split()
                 ctype = ls[0]
                 # we don't support setting xyz here because it's confusing
-                if ctype not in ['bond','distance','angle','dihedral']:
-                    raise ValueError('Only bond, distance, angle, and dihedral, constraints are supported by Set')
+                if ctype not in ['distance','angle','dihedral']:
+                    raise ValueError('Only distance, angle, and dihedral constraints are supported by Set')
                 indices = [int(i)-1 for i in ls[1:-1]]
                 assert all(i >= 0 for i in indices), f'Invalid atom index in line {line}, one-indexed should start from 1'
                 value = float(ls[-1])

@@ -111,6 +111,22 @@ def test_reproduce_range_limit_example(example_path):
     sys.argv = argv
     assert filecmp.cmp('scan.xyz', 'orig_scan.xyz')
 
+def test_reproduce_range_limit_split_example(example_path):
+    """
+    Testing Reproducing examples/range_limited_split
+    """
+    from torsiondrive import launch
+    # reproduce qchem work_queue geomeTRIC
+    os.chdir(example_path)
+    os.chdir('range_limited')
+    subprocess.run('tar zxf opt_tmp.tar.gz', shell=True, check=True)
+    shutil.copy('scan.xyz', 'orig_scan.xyz')
+    argv = sys.argv[:]
+    sys.argv = 'torsiondrive-launch qc.in dihedrals.txt -g 15 30 -e qchem -v'.split()
+    launch.main()
+    sys.argv = argv
+    assert filecmp.cmp('scan.xyz', 'orig_scan.xyz')
+
 def test_reproduce_api_example(example_path):
     """
     Testing Reproducing examples/api_example

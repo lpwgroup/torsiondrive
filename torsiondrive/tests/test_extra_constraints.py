@@ -14,9 +14,9 @@ def test_make_constraints_dict():
     constraits_string = '''
     $freeze
     xyz 1-3,6-7
-    bond 1 5
+    distance 1 5
     $set
-    bond 1 4 1.0
+    distance 1 4 1.0
     angle 4 1 2 30.0
     dihedral 1 2 3 4 60.0
     '''
@@ -26,12 +26,12 @@ def test_make_constraints_dict():
     assert len(spec_list) == 2
     assert spec_list[0]['type'] == 'xyz'
     assert spec_list[0]['indices'] == [0, 1, 2, 5, 6]
-    assert spec_list[1]['type'] == 'bond'
+    assert spec_list[1]['type'] == 'distance'
     assert spec_list[1]['indices'] == [0, 4]
     # test the set constraints
     spec_list = constraints_dict['set']
     assert len(spec_list) == 3
-    assert spec_list[0]['type'] == 'bond'
+    assert spec_list[0]['type'] == 'distance'
     assert spec_list[0]['indices'] == [0, 3]
     assert spec_list[0]['value'] == 1.0
     assert spec_list[1]['type'] == 'angle'
@@ -44,14 +44,14 @@ def test_make_constraints_dict():
     # scan not supported
     wrong_constraits_string = '''
     $scan
-    bond 1 2 1.0 2.0 10
+    distance 1 2 1.0 2.0 10
     '''
     with pytest.raises(ValueError):
         make_constraints_dict(wrong_constraits_string)
     # $unknown not supported
     wrong_constraits_string = '''
     $unknown
-    bond 1 2 1.0 2.0 10
+    distance 1 2 1.0 2.0 10
     '''
     with pytest.raises(ValueError):
         make_constraints_dict(wrong_constraits_string)
@@ -71,7 +71,7 @@ def test_make_constraints_dict():
         make_constraints_dict(wrong_constraits_string)
     # missing $set
     wrong_constraits_string = '''
-    bond 1 2 1.0
+    distance 1 2 1.0
     '''
     with pytest.raises(ValueError):
         make_constraints_dict(wrong_constraits_string)
@@ -85,7 +85,7 @@ def test_make_constraints_dict():
     # wrong index
     wrong_constraits_string = '''
     $set
-    bond 0 1 1.0
+    distance 0 1 1.0
     '''
     with pytest.raises(AssertionError):
         make_constraints_dict(wrong_constraits_string)
@@ -102,9 +102,9 @@ def test_check_conflict_constraits():
     constraits_string = '''
     $freeze
     xyz 1-3,6-7
-    bond 1 5
+    distance 1 5
     $set
-    bond 1 4 1.0
+    distance 1 4 1.0
     angle 4 1 2 30.0
     dihedral 1 2 3 4 60.0
     '''
@@ -138,13 +138,13 @@ def test_build_geometric_constraint_string():
                 'indices': [0, 1, 2, 5, 6],
             },
             {
-                'type': 'bond',
+                'type': 'distance',
                 'indices': [0, 4],
             }
         ],
         'set': [
             {
-                'type': 'bond',
+                'type': 'distance',
                 'indices': [0, 3],
                 'value': 1.0,
             },
@@ -162,12 +162,12 @@ def test_build_geometric_constraint_string():
     }
     constraints_string = build_geometric_constraint_string(constraints_dict)
     # validate the constraints string
-    assert constraints_string.strip() == '\n'.join(['$freeze', 'xyz 1-3,6-7', 'bond 1 5', '$set', 'bond 1 4 1.0',
+    assert constraints_string.strip() == '\n'.join(['$freeze', 'xyz 1-3,6-7', 'distance 1 5', '$set', 'distance 1 4 1.0',
         'angle 2 1 4 30.0', 'dihedral 1 2 3 4 60.0'])
     # test with dihedral_idx_values
     dihedral_idx_values=[(1,2,3,4,90.0), (2,3,4,5,120.0)]
     constraints_string2 = build_geometric_constraint_string(constraints_dict, dihedral_idx_values=dihedral_idx_values)
-    assert constraints_string2.strip() == '\n'.join(['$freeze', 'xyz 1-3,6-7', 'bond 1 5', '$set', 'bond 1 4 1.0',
+    assert constraints_string2.strip() == '\n'.join(['$freeze', 'xyz 1-3,6-7', 'distance 1 5', '$set', 'distance 1 4 1.0',
         'angle 2 1 4 30.0', 'dihedral 1 2 3 4 60.0', 'dihedral 2 3 4 5 90.0', 'dihedral 3 4 5 6 120.0'])
 
 def test_build_terachem_constraint_string():
@@ -192,7 +192,7 @@ def test_build_terachem_constraint_string():
         ],
         'set': [
             {
-                'type': 'bond',
+                'type': 'distance',
                 'indices': [0, 3],
                 'value': 1.0,
             },
