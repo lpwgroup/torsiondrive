@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import print_function
-
 from torsiondrive.dihedral_scanner import DihedralScanner
-from torsiondrive.qm_engine import EnginePsi4, EngineQChem, EngineTerachem, make_constraints_dict
+from torsiondrive.qm_engine import EnginePsi4, EngineQChem, EngineTerachem
+from torsiondrive.extra_constraints import make_constraints_dict
 from geometric.molecule import Molecule
 
 def load_dihedralfile(dihedralfile, zero_based_numbering=False):
@@ -133,10 +132,10 @@ def main():
     grid_dim = len(dihedral_idxs)
 
     # parse additional constraints
+    constraints_dict = None
     if args.constraints is not None:
-        constraints_dict = make_constraints_dict(open(args.constraints).read(), exclude=dihedral_idxs)
-    else:
-        constraints_dict = None
+        with open(args.constraints) as fin:
+            constraints_dict = make_constraints_dict(fin.read(), exclude=dihedral_idxs)
 
     # format grid spacing
     n_grid_spacing = len(args.grid_spacing)
