@@ -115,25 +115,27 @@ def build_geometric_constraint_string(constraints_dict, dihedral_idx_values=None
     """
     constraints_string = ''
     # write the "$freeze" section
-    for spec_list in constraints_dict.get('freeze',[]):
-        if len(spec_list) > 0:
-            constraints_string += '$freeze\n'
-            for spec_dict in spec_list:
-                ctype, indices = spec_dict['type'], spec_dict['indices']
-                if ctype == 'xyz':
-                    constraints_string += f'xyz {commadash(indices)}' + '\n'
-                else:
-                    constraints_string += f'{ctype} ' + ' '.join(map(str, [i+1 for i in indices])) + '\n'
+    spec_list = constraints_dict.get('freeze',[])
+    if len(spec_list) > 0:
+        constraints_string += '$freeze\n'
+        for spec_dict in spec_list:
+            ctype, indices = spec_dict['type'], spec_dict['indices']
+            if ctype == 'xyz':
+                constraints_string += f'xyz {commadash(indices)}' + '\n'
+            else:
+                constraints_string += f'{ctype} ' + ' '.join(map(str, [i+1 for i in indices])) + '\n'
     # write the "$set" section
-    for spec_list in constraints_dict.get('set',[]):
-        if len(spec_list) > 0:
-            constraints_string += '$set\n'
+    set_section_open = False
+    spec_list = constraints_dict.get('set',[])
+    if len(spec_list) > 0:
+        constraints_string += '$set\n'
+        set_section_open = True
         for spec_dict in spec_list:
             ctype, indices, value = spec_dict['type'], spec_dict['indices'], spec_dict['value']
             constraints_string += f'{ctype} ' + ' '.join(map(str, [i+1 for i in indices])) + f' {float(value)}\n'
     # write dihedral_idx_values as constraints
     if dihedral_idx_values is not None:
-        if len(constraints_dict.get('set',[])) == 0:
+        if set_section_open is False:
             # write the $set head if not written yet
             constraints_string += '$set\n'
         for d1, d2, d3, d4, v in dihedral_idx_values:
@@ -160,29 +162,29 @@ def build_terachem_constraint_string(constraints_dict, dihedral_idx_values=None)
     """
     constraints_string = '\n'
     # write the "$constraint_freeze" section
-    for spec_list in constraints_dict.get('freeze',[]):
-        if len(spec_list) > 0:
-            constraints_string += '$constraint_freeze\n'
-            for spec_dict in spec_list:
-                ctype, indices = spec_dict['type'], spec_dict['indices']
-                if ctype == 'xyz':
-                    constraints_string += f'xyz {commadash(indices)}' + '\n'
-                else:
-                    # TeraChem only take "bond" keyword
-                    if ctype == 'distance': ctype = 'bond'
-                    constraints_string += f'{ctype} ' + '_'.join(map(str, [i+1 for i in indices])) + '\n'
-            constraints_string += '$end\n\n'
-    # write the "$constraint_set" section
-    set_section_open = False
-    for spec_list in constraints_dict.get('set',[]):
-        if len(spec_list) > 0:
-            constraints_string += '$constraint_set\n'
-            set_section_open = True
-            for spec_dict in spec_list:
-                ctype, indices, value = spec_dict['type'], spec_dict['indices'], spec_dict['value']
+    spec_list = constraints_dict.get('freeze',[])
+    if len(spec_list) > 0:
+        constraints_string += '$constraint_freeze\n'
+        for spec_dict in spec_list:
+            ctype, indices = spec_dict['type'], spec_dict['indices']
+            if ctype == 'xyz':
+                constraints_string += f'xyz {commadash(indices)}' + '\n'
+            else:
                 # TeraChem only take "bond" keyword
                 if ctype == 'distance': ctype = 'bond'
-                constraints_string += f'{ctype} {float(value)} ' + '_'.join(map(str, [i+1 for i in indices])) + '\n'
+                constraints_string += f'{ctype} ' + '_'.join(map(str, [i+1 for i in indices])) + '\n'
+        constraints_string += '$end\n\n'
+    # write the "$constraint_set" section
+    set_section_open = False
+    spec_list = constraints_dict.get('set',[])
+    if len(spec_list) > 0:
+        constraints_string += '$constraint_set\n'
+        set_section_open = True
+        for spec_dict in spec_list:
+            ctype, indices, value = spec_dict['type'], spec_dict['indices'], spec_dict['value']
+            # TeraChem only take "bond" keyword
+            if ctype == 'distance': ctype = 'bond'
+            constraints_string += f'{ctype} {float(value)} ' + '_'.join(map(str, [i+1 for i in indices])) + '\n'
     # write dihedral_idx_values as constraints
     if dihedral_idx_values is not None:
         if set_section_open is False:

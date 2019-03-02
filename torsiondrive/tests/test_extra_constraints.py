@@ -215,8 +215,8 @@ def test_build_terachem_constraint_string():
     # test with dihedral_idx_values
     dihedral_idx_values=[(1,2,3,4,90.0), (2,3,4,5,120.0)]
     constraints_string2 = build_geometric_constraint_string(constraints_dict, dihedral_idx_values=dihedral_idx_values)
-    assert constraints_string2.strip() == '\n'.join(['$constraint_freeze', 'xyz 1-3,6-7', 'bond 1 5', '$constraint_set', 'bond 1 4 1.0',
-        'angle 30.0 4_1_2', 'dihedral 60.0 1_2_3_4', 'dihedral 90.0 2_3_4_5 ', 'dihedral 120.0 3_4_5_6'])
+    assert constraints_string2.strip() == '\n'.join(['$constraint_freeze', 'xyz 1-3,6-7', 'bond 1 5', '$end\n', '$constraint_set', 'bond 1 4 1.0',
+        'angle 30.0 4_1_2', 'dihedral 60.0 1_2_3_4', 'dihedral 90.0 2_3_4_5 ', 'dihedral 120.0 3_4_5_6', '$end'])
 
 def test_reproduce_extra_constraints_example():
     """
