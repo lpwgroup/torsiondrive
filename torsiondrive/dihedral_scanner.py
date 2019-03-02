@@ -592,3 +592,4 @@ class DihedralScanner:
         for y in grid_y[::-1]:
             line = '%4d '%y + ''.join(status_symbols[grid_status[(x,y)]] for x in grid_x) + '\n'
             result_str += line
+        return result_str
