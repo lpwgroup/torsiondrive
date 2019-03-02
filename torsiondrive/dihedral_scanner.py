@@ -53,7 +53,7 @@ class DihedralScanner:
     verbose: bool
         let methods print more information when running
     """
-    def __init__(self, engine, dihedrals, grid_spacing, init_coords_M=None, energy_decrease_thresh=0.00001, dihedral_ranges=None, verbose=False):
+    def __init__(self, engine, dihedrals, grid_spacing, init_coords_M=None, energy_decrease_thresh=0.00001, dihedral_ranges=None, extra_constraints=None, verbose=False):
         self.engine = engine
         # store verbose flag for later printing
         self.verbose = verbose
@@ -73,6 +73,9 @@ class DihedralScanner:
         # validate dihedral ranges and build mask
         self.dihedral_ranges = dihedral_ranges if dihedral_ranges is not None else [] # for sanity check
         self.dihedral_mask = self.build_dihedral_mask(dihedral_ranges)
+        # extra_constraints does not change, used in engine
+        self.extra_constraints = extra_constraints
+        self.engine.extra_constraints = extra_constraints
         # create a optiimization job queue
         self.opt_queue = PriorityQueue()
         # try to use init_coords_M first, if not given, use M in engine's template
@@ -365,12 +368,16 @@ class DihedralScanner:
         settings_fname = os.path.join(self.tmp_folder_name, 'scanner_settings.json')
         with open(settings_fname) as jsonfile:
             scanner_settings = json.load(jsonfile)
-        err_msg = "Previous job doesn't match current one, please delete %s to restart" % self.tmp_folder_name
-        assert len(self.dihedrals) == len(scanner_settings['dihedrals']), err_msg
-        assert np.array_equal(np.array(self.dihedrals), np.array(scanner_settings['dihedrals'])), err_msg
-        assert np.array_equal(self.grid_spacing, scanner_settings['grid_spacing']), err_msg
-        assert self.energy_decrease_thresh == scanner_settings['energy_decrease_thresh'], err_msg
-        assert np.array_equal(self.dihedral_ranges, scanner_settings['dihedral_ranges']), err_msg
+        err_msg = " does not match current one, please delete %s to restart" % self.tmp_folder_name
+        assert len(self.dihedrals) == len(scanner_settings['dihedrals']), 'Setting [dihedrals] '+err_msg
+        assert np.array_equal(np.array(self.dihedrals), np.array(scanner_settings['dihedrals'])), 'Setting [dihedrals] '+err_msg
+        assert np.array_equal(self.grid_spacing, scanner_settings['grid_spacing']), 'Setting [grid_spacing] '+err_msg
+        if 'energy_decrease_thresh' in scanner_settings:
+            assert self.energy_decrease_thresh == scanner_settings['energy_decrease_thresh'], 'Setting [energy_decrease_thresh] '+err_msg
+        if 'dihedral_ranges' in scanner_settings:
+            assert np.array_equal(self.dihedral_ranges, scanner_settings['dihedral_ranges']), 'Setting [dihedral_ranges] '+err_msg
+        if 'extra_constraints' in scanner_settings:
+            assert json.dumps(self.extra_constraints, sort_keys=True) == json.dumps(scanner_settings['extra_constraints'], sort_keys=True), 'Setting [extra_constraints] '+err_msg
         # read all finished jobs in tmp folder
         self.tmp_folder_dict = dict()
         n_cache = 0
@@ -402,8 +409,13 @@ class DihedralScanner:
         assert hasattr(self, 'grid_ids'), 'Call self.setup_grid() first'
         os.mkdir(self.tmp_folder_name)
         # save current scan settings
-        scanner_settings = {'dihedrals': self.dihedrals, 'grid_spacing': self.grid_spacing,
-                            'energy_decrease_thresh': self.energy_decrease_thresh, 'dihedral_ranges': self.dihedral_ranges}
+        scanner_settings = {
+            'dihedrals': self.dihedrals,
+            'grid_spacing': self.grid_spacing,
+            'energy_decrease_thresh': self.energy_decrease_thresh,
+            'dihedral_ranges': self.dihedral_ranges,
+            'extra_constraints': self.extra_constraints,
+        }
         settings_fname = os.path.join(self.rootpath, self.tmp_folder_name, 'scanner_settings.json')
         with open(settings_fname, 'w') as jsonfile:
             json.dump(scanner_settings, jsonfile)

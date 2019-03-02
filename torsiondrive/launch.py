@@ -149,14 +149,14 @@ def main():
         raise ValueError("Number of grid_spacing values %d is not consistent with number of dihedral angles %d" % (grid_dim, n_grid_spacing))
 
     # create QM Engine, and WorkQueue object if provided port
-    engine = create_engine(args.engine, inputfile=args.inputfile, work_queue_port=args.wq_port, native_opt=args.native_opt, extra_constraints=constraints_dict)
+    engine = create_engine(args.engine, inputfile=args.inputfile, work_queue_port=args.wq_port, native_opt=args.native_opt)
 
     # load init_coords if provided
     init_coords_M = Molecule(args.init_coords) if args.init_coords else None
 
     # create DihedralScanner object
     scanner = DihedralScanner(engine, dihedrals=dihedral_idxs, dihedral_ranges=dihedral_ranges, grid_spacing=grid_spacing, init_coords_M=init_coords_M,
-                              energy_decrease_thresh=args.energy_thresh,  verbose=args.verbose)
+                              energy_decrease_thresh=args.energy_thresh, extra_constraints=constraints_dict, verbose=args.verbose)
     # Run the scan!
     scanner.master()
     # After finish, print result
