@@ -149,9 +149,13 @@ def test_reproduce_extra_constraints_example(example_path):
     """
     Testing Reproducing examples/extra_constraints
     """
+    from torsiondrive import launch
     os.chdir(example_path)
     os.chdir('extra_constraints')
     subprocess.run('tar zxf opt_tmp.tar.gz', shell=True, check=True)
     shutil.copy('scan.xyz', 'orig_scan.xyz')
-    subprocess.run('bash run_command', shell=True, check=True)
+    argv = sys.argv[:]
+    sys.argv = 'torsiondrive-launch qc.in dihedrals.txt -g 15 -e qchem -c constraints.txt -v'.split()
+    launch.main()
+    sys.argv = argv
     assert filecmp.cmp('scan.xyz', 'orig_scan.xyz')
