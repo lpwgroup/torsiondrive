@@ -18,7 +18,7 @@ def example_path(tmpdir_factory):
     # tmpdir_factory is a pytest built-in fixture that has "session" scope
     tmpdir = tmpdir_factory.mktemp('torsiondrive_test_tmp')
     tmpdir.chdir()
-    example_version = '0.9.4'
+    example_version = '0.9.5'
     url = f'https://github.com/lpwgroup/torsiondrive_examples/archive/v{example_version}.tar.gz'
     subprocess.run(f'wget -nc -q {url}', shell=True, check=True)
     subprocess.run(f'tar zxf v{example_version}.tar.gz', shell=True, check=True)
