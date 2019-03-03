@@ -5,8 +5,8 @@ channels:
   - psi4
 dependencies:
     # Psi test depends
-  - psi4
-  - qcengine
+  - psi4=1.3
+  - qcengine=0.6.1
 
     # geomeTRIC base depends
   - numpy
