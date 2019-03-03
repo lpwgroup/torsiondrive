@@ -5,7 +5,7 @@ channels:
   - psi4
 dependencies:
     # Psi test depends
-  - psi4=1.2.1
+  - psi4
   - qcengine
 
     # geomeTRIC base depends
