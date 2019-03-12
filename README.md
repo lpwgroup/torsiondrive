@@ -7,6 +7,8 @@ Dihedral scanner with wavefront propagation
 
 ## Dependencies
 
+* Python >= 3.6
+
 * Numpy
 
 * [geomeTRIC](https://github.com/leeping/geomeTRIC) molecule.py, also to enable the `geometric-optimize` command
