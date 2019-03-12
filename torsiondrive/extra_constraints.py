@@ -30,10 +30,10 @@ def make_constraints_dict(constraints_string):
 
     Notes
     -----
-    1. Only Constraint of type "freeze" and "set" are supported, since extra "scan" is undefined with torsiondrive scan.
-    2. Five attributed are allowed to be constrained: 'bond','distance','angle','dihedral','xyz'
+    1. Only constraints of type "freeze" and "set" are supported, since extra "scan" is undefined with torsiondrive scan.
+    2. Four attributes are allowed to be constrained: 'distance', 'angle', 'dihedral', 'xyz'
     3. The input string is one-indexed, the output dictionary is zero-indexed.
-    4. For "xyz", dashed input like "1-3,7-9" (no space) is allowed, which will be converted to [0,1,2,6,7,8].
+    4. For "xyz", dashed inputs like "1-3,7-9" (no space) is allowed, and will be converted to [0,1,2,6,7,8].
     """
     constraints_mode = None
     constraints_dict = {'freeze': [], 'set': []}
