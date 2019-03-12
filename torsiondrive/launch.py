@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import print_function
-
 from torsiondrive.dihedral_scanner import DihedralScanner
-from torsiondrive.qm_engine import EnginePsi4, EngineQChem, EngineTerachem, make_constraints_dict
+from torsiondrive.qm_engine import EnginePsi4, EngineQChem, EngineTerachem
+from torsiondrive.extra_constraints import make_constraints_dict, check_conflict_constraits
 from geometric.molecule import Molecule
 
 def load_dihedralfile(dihedralfile, zero_based_numbering=False):
@@ -133,10 +132,12 @@ def main():
     grid_dim = len(dihedral_idxs)
 
     # parse additional constraints
+    constraints_dict = None
     if args.constraints is not None:
-        constraints_dict = make_constraints_dict(open(args.constraints).read(), exclude=dihedral_idxs)
-    else:
-        constraints_dict = None
+        with open(args.constraints) as fin:
+            constraints_dict = make_constraints_dict(fin.read())
+            # check if there are extra constraints conflict with the specified dihedral angles
+            check_conflict_constraits(constraints_dict, dihedral_idxs)
 
     # format grid spacing
     n_grid_spacing = len(args.grid_spacing)
@@ -148,14 +149,14 @@ def main():
         raise ValueError("Number of grid_spacing values %d is not consistent with number of dihedral angles %d" % (grid_dim, n_grid_spacing))
 
     # create QM Engine, and WorkQueue object if provided port
-    engine = create_engine(args.engine, inputfile=args.inputfile, work_queue_port=args.wq_port, native_opt=args.native_opt, extra_constraints=constraints_dict)
+    engine = create_engine(args.engine, inputfile=args.inputfile, work_queue_port=args.wq_port, native_opt=args.native_opt)
 
     # load init_coords if provided
     init_coords_M = Molecule(args.init_coords) if args.init_coords else None
 
     # create DihedralScanner object
     scanner = DihedralScanner(engine, dihedrals=dihedral_idxs, dihedral_ranges=dihedral_ranges, grid_spacing=grid_spacing, init_coords_M=init_coords_M,
-                              energy_decrease_thresh=args.energy_thresh,  verbose=args.verbose)
+                              energy_decrease_thresh=args.energy_thresh, extra_constraints=constraints_dict, verbose=args.verbose)
     # Run the scan!
     scanner.master()
     # After finish, print result

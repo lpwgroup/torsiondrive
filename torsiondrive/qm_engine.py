@@ -1,10 +1,8 @@
 import os
 import subprocess
 import numpy as np
-from collections import OrderedDict
-from geometric.nifty import uncommadash
 from geometric.molecule import Molecule
-from copy import deepcopy
+from torsiondrive.extra_constraints import build_geometric_constraint_string, build_terachem_constraint_string
 
 def check_all_float(iterable):
     try:
@@ -12,76 +10,6 @@ def check_all_float(iterable):
         return True
     except ValueError:
         return False
-
-def constraint_match(cons_type, cons_spec, indices):
-    """ Check to see if a string-specified constraint matches a set of provided zero-based indices. """
-    s = cons_spec.split()
-    if cons_type in ['bond', 'distance']:
-        sMatch = [int(i)-1 for i in s[:2]]
-        if len(indices) != 2: return False
-        elif tuple(sMatch) == tuple(indices): return True
-        elif tuple(sMatch[::-1]) == tuple(indices): return True
-        else: return False
-    elif cons_type == 'angle':
-        sMatch = [int(i)-1 for i in s[:3]]
-        if len(indices) != 3: return False
-        elif tuple(sMatch) == tuple(indices): return True
-        elif tuple(sMatch[::-1]) == tuple(indices): return True
-        else: return False
-    elif cons_type == 'dihedral':
-        # Dihedrals should "match" if the two middle atoms are the same
-        sMatch = [int(i)-1 for i in s[:4]]
-        if len(indices) != 4: return False
-        elif (sMatch[1], sMatch[2]) == (indices[1], indices[2]): return True
-        elif (sMatch[1], sMatch[2]) == (indices[2], indices[1]): return True
-        else: return False
-    elif cons_type == 'xyz':
-        sMatch = uncommadash(cons_spec)
-        if sMatch == sorted(indices): return True
-        elif len(indices) == 4 and indices[0] in sMatch and indices[3] in sMatch: return True
-        else: return False
-    else:
-        raise RuntimeError("Problem detected with user-supplied extra constraints")
-        
-def make_constraints_dict(constraints_string, exclude=[]):
-    """ Create an ordered dictionary with constraints specification. 
-    
-    Parameters
-    ----------
-    constraints_string: str
-        String-formatted constraint specification consistent with geomeTRIC constraints.txt
-    exclude: list, optional
-        A list of zero-based constraint atom indices (e.g. dihedrals to be scanned over)
-        which should not be included in this dictionary
-    """  
-    constraints_mode = None
-    constraints_dict = OrderedDict([('freeze', []),('set', [])])
-    for line in constraints_string.split('\n'):
-        # Ignore anything after a comment
-        line = line.split('#')[0].lower().strip()
-        if len(line) == 0: continue
-        if line.startswith('$'):
-            if line == '$freeze':
-                constraints_mode = 'freeze'
-            elif line == '$set':
-                constraints_mode = 'set'
-            elif line == '$end':
-                constraints_mode = None
-            elif line == '$scan':
-                raise RuntimeError('Additional $scan constraints are not allowed')
-            else:
-                raise RuntimeError('Unrecognized token starting with $')
-        else:
-            if constraints_mode == None:
-                print('ERROR: ', line)
-                raise RuntimeError('Trying to read the above constraint line, but constraint mode is not set')
-            else:
-                spec_tuple = tuple(line.split())
-                if spec_tuple[0] not in ['bond','distance','angle','dihedral','xyz']:
-                    raise RuntimeError('Only bond, angle, and dihedral, xyz constraints are supported')
-                if any([constraint_match(spec_tuple[0], ' '.join(spec_tuple[1:]), excl) for excl in exclude]): continue
-                constraints_dict[constraints_mode].append(spec_tuple)
-    return constraints_dict
 
 class QMEngine(object):
     def __init__(self, input_file=None, work_queue=None, native_opt=False, extra_constraints=None):
@@ -114,29 +42,14 @@ class QMEngine(object):
     def write_constraints_txt(self):
         """ write a constraints.txt file for geomeTRIC """
         if self.extra_constraints is None:
-            with open('constraints.txt', 'w') as outfile:
-                outfile.write("$set\n")
-                for d1, d2, d3, d4, v in self.dihedral_idx_values:
-                    # geomeTRIC use atomic index starting from 1
-                    outfile.write("dihedral %d %d %d %d %f\n" % (d1+1, d2+1, d3+1, d4+1, v))
+            constraints_string = "$set\n"
+            for d1, d2, d3, d4, v in self.dihedral_idx_values:
+                # geomeTRIC use atomic index starting from 1
+                constraints_string += f"dihedral {d1+1} {d2+1} {d3+1} {d4+1} {float(v)}\n"
         else:
-            constraints_string = ''
-            for key, value_list in self.extra_constraints.items():
-                if key == 'freeze':
-                    if len(value_list) > 0:
-                        constraints_string += '$' + key + '\n'
-                        for spec_tuple in value_list:
-                            constraints_string += ' '.join(spec_tuple) + '\n'
-                elif key == 'set':
-                    constraints_string += '$' + key + '\n'
-                    for spec_tuple in value_list:
-                        constraints_string += ' '.join(spec_tuple) + '\n'
-                    for d1, d2, d3, d4, v in self.dihedral_idx_values:
-                        constraints_string += ("dihedral %d %d %d %d %f\n" % (d1+1, d2+1, d3+1, d4+1, v))
-                else:
-                    raise KeyError("constraints key %s is not recognized" % key)
-            with open('constraints.txt', 'w') as outfile:
-                outfile.write(constraints_string)             
+            constraints_string = build_geometric_constraint_string(self.extra_constraints, self.dihedral_idx_values)
+        with open('constraints.txt', 'w') as outfile:
+            outfile.write(constraints_string)
 
     def load_geomeTRIC_output(self):
         """ Load the optimized geometry and energy into a new molecule object and return """
@@ -534,7 +447,7 @@ class EngineTerachem(QMEngine):
             for line in self.tera_temp:
                 if line == "$!constraints@here":
                     if hasattr(self, 'constraintsStr'):
-                        # self.optblockStr will be set by self.optimize_native()
+                        # self.constraintsStr will be set by self.optimize_native()
                         terain.write(self.constraintsStr)
                 else:
                     terain.write(line)
@@ -547,32 +460,14 @@ class EngineTerachem(QMEngine):
         2. run the job
         """
         assert self.temp_type == 'optimize', "To use native optimization, the input file be an opt job"
-
         if self.extra_constraints is None:
             self.constraintsStr = '\n$constraint_set\n'
             for d1, d2, d3, d4, v in self.dihedral_idx_values:
                 # TeraChem use atom index starting from 1
-                self.constraintsStr += 'dihedral %f %d_%d_%d_%d\n' % (v, d1+1, d2+1, d3+1, d4+1)
+                self.constraintsStr += f"dihedral {float(v)} {d1+1}_{d2+1}_{d3+1}_{d4+1}\n"
             self.constraintsStr += '$end\n'
         else:
-            self.constraintsStr = '\n'
-            for key, value_list in self.extra_constraints.items():
-                if key == 'freeze':
-                    if len(value_list) > 0:
-                        self.constraintsStr += '$constraint_freeze\n'
-                        for spec_tuple in value_list:
-                            self.constraintsStr += '%s %s\n' % (spec_tuple[0].replace('distance', 'bond'), '_'.join(spec_tuple[1:]))
-                        self.constraintsStr += '$end\n\n'
-                elif key == 'set':
-                    self.constraintsStr += '$constraint_set\n'
-                    for spec_tuple in value_list:
-                        self.constraintsStr += '%s %s %s\n' % (spec_tuple[0].replace('distance', 'bond'), spec_tuple[-1], '_'.join(spec_tuple[1:-1]))
-                    for d1, d2, d3, d4, v in self.dihedral_idx_values:
-                        self.constraintsStr += 'dihedral %f %d_%d_%d_%d\n' % (v, d1+1, d2+1, d3+1, d4+1)
-                    self.constraintsStr += '$end\n'
-                else:
-                    raise KeyError("constraints key %s is not recognized" % key)
-
+            self.constraintsStr = build_terachem_constraint_string(self.extra_constraints, self.dihedral_idx_values)
         # write input file
         self.write_input()
         # run the job
@@ -596,5 +491,5 @@ class EngineTerachem(QMEngine):
         """ Load the optimized geometry and energy into a new molecule object and return """
         m = Molecule('scr/optim.xyz')[-1]
         # read the energy from optim.xyz comment line
-        m.qm_energies = [float(m.comms[0].split(None, 1)[0])]
+        m.qm_energies = [float(m.comms[0].split(maxsplit=1)[0])]
         return m

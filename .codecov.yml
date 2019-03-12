@@ -1,6 +1,8 @@
 coverage:
   ignore:
     - torsiondrive/tests/.*
+    - torsiondrive/_version.py
+    - torsiondrive/tools/.*
     - setup.py
   status:
     patch: false
