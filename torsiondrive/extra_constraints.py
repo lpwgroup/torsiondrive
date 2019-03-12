@@ -49,9 +49,9 @@ def make_constraints_dict(constraints_string):
             elif line == '$end':
                 constraints_mode = None
             elif line == '$scan':
-                raise ValueError('Additional $scan constraints are not allowed')
+                raise ValueError(f'Additional $scan constraints are not allowed')
             else:
-                raise ValueError('Unrecognized token starting with $')
+                raise ValueError(f'Line {line}\nUnrecognized token starting with $')
         else:
             if constraints_mode == None:
                 raise ValueError(f'Trying to read the constraint line\n\n{line}\n\n, but constraint mode is not set')
@@ -59,9 +59,9 @@ def make_constraints_dict(constraints_string):
                 ls = line.split()
                 ctype = ls[0]
                 if ctype not in ['distance','angle','dihedral','xyz']:
-                    raise ValueError('Only distance, angle, and dihedral, xyz constraints are supported')
+                    raise ValueError(f'Line {line}\nOnly distance, angle, and dihedral, xyz constraints are supported')
                 indices = [int(i)-1 for i in ls[1:]] if ctype != 'xyz' else uncommadash(ls[1])
-                assert all(i >= 0 for i in indices), f'Invalid atom index in line {line}, one-indexed should start from 1'
+                assert all(i >= 0 for i in indices), f'Invalid atom index in line\n{line}\n, one-indexed should start from 1'
                 spec_dict = { 'type': ctype, 'indices': indices }
                 constraints_dict[constraints_mode].append(spec_dict)
             elif constraints_mode == 'set':
@@ -69,14 +69,14 @@ def make_constraints_dict(constraints_string):
                 ctype = ls[0]
                 # we don't support setting xyz here because it's confusing
                 if ctype not in ['distance','angle','dihedral']:
-                    raise ValueError('Only distance, angle, and dihedral constraints are supported by Set')
+                    raise ValueError(f'Line {line}\nOnly distance, angle, and dihedral constraints are supported by Set')
                 indices = [int(i)-1 for i in ls[1:-1]]
                 assert all(i >= 0 for i in indices), f'Invalid atom index in line {line}, one-indexed should start from 1'
                 value = float(ls[-1])
                 spec_dict = { 'type': ctype, 'indices': indices, 'value': value }
                 constraints_dict[constraints_mode].append(spec_dict)
             else:
-                raise ValueError(f"Constraints mode {constraints_mode} is not supported")
+                raise ValueError(f"Line {line}\nConstraints mode {constraints_mode} is not supported")
     return constraints_dict
 
 def check_conflict_constraits(constraints_dict, dihedral_idxs):

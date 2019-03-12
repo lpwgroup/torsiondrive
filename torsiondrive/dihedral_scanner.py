@@ -50,6 +50,8 @@ class DihedralScanner:
         The threshold of the smallest energy decrease amount to trigger activating optimizations from grid point.
     dihedral_ranges: List[(lower, upper), ..]
         A list of dihedral range limits as a pair (lower, upper), each range corresponds to the dihedrals in input.
+    extra_constraints: Dict
+        A nested dictionary specifing extra constraints in geomeTRIC format. Details in extra_constraints.py
     verbose: bool
         let methods print more information when running
     """
@@ -62,7 +64,7 @@ class DihedralScanner:
         for dihedral in dihedrals:
             assert len(dihedral) == 4, "each dihedral in dihedrals should have 4 indices, e.g. (1,2,3,4)"
             dihedral_tuple = tuple(map(int, dihedral))
-            assert dihedral_tuple not in self.dihedrals, "All dihedrals should be unique"
+            assert dihedral_tuple not in self.dihedrals and dihedral_tuple[::-1] not in self.dihedrals, "All dihedrals should be unique"
             self.dihedrals.append(dihedral_tuple)
         self.grid_dim = len(self.dihedrals)
         for gs in grid_spacing:
@@ -73,9 +75,8 @@ class DihedralScanner:
         # validate dihedral ranges and build mask
         self.dihedral_ranges = dihedral_ranges if dihedral_ranges is not None else [] # for sanity check
         self.dihedral_mask = self.build_dihedral_mask(dihedral_ranges)
-        # extra_constraints does not change, used in engine
+        # extra_constraints does not change, will be passed to engine for generating input files
         self.extra_constraints = extra_constraints
-        self.engine.extra_constraints = extra_constraints
         # create a optiimization job queue
         self.opt_queue = PriorityQueue()
         # try to use init_coords_M first, if not given, use M in engine's template
@@ -467,6 +468,7 @@ class DihedralScanner:
             print("Launching new job at %s" % new_job_path)
         # launch optimization job inside scratch folder
         self.engine.M = copy.deepcopy(molecule)
+        self.engine.extra_constraints = self.extra_constraints
         self.engine.set_dihedral_constraints(dihedral_idx_values)
         self.engine.launch_optimize(new_job_path)
         return new_job_path
