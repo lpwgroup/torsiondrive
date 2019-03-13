@@ -158,7 +158,7 @@ def get_next_jobs(current_state, verbose=False):
     init_coords_M.xyzs = current_state['init_coords']
     init_coords_M.build_topology()
     # create a new scanner object
-    scanner = DihedralScanRepeater(QMEngine(), dihedrals, grid_spacing, init_coords_M, verbose)
+    scanner = DihedralScanRepeater(QMEngine(), dihedrals, grid_spacing, init_coords_M=init_coords_M, verbose=verbose)
     # rebuild the task_cache for scanner
     scanner.rebuild_task_cache(current_state['grid_status'])
     # run the scanner until some calculation is not found in cache
@@ -236,7 +236,8 @@ def current_state_json_load(json_state_dict):
 def next_jobs_json_dict(next_jobs):
     """ Dump the next_jobs dictionary to a json file """
     json_next_jobs = {}
-    for grid_id, new_job_list in next_jobs.items():
+    for grid_id in sorted(next_jobs):
+        new_job_list = next_jobs[grid_id]
         grid_id_str = ','.join(map(str, grid_id))
         json_job_list = [(new_job_geo * ang2bohr).ravel().tolist() for new_job_geo in new_job_list]
         json_next_jobs[grid_id_str] = json_job_list
@@ -357,8 +358,7 @@ def main():
         description="Take a scan state and return the next set of optimizations",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('statefile', help='File contains the current state in JSON format')
-    parser.add_argument(
-        '-v', '--verbose', action='store_true', default=False, help='Print more information while running.')
+    parser.add_argument('-v', '--verbose', action='store_true', default=False, help='Print more information while running.')
     args = parser.parse_args()
 
     # print input command for reproducibility
