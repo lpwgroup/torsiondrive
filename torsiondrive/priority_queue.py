@@ -30,7 +30,7 @@ class PriorityQueue(object):
         Pop the task that was pushed with highest priority value
         """
         if len(self._pq) == 0:
-            raise RuntimeError("pop from an empty priority queue")
+            raise IndexError("pop from an empty priority queue")
         _, _, task = heappop(self._pq)
         return task
 
