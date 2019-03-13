@@ -37,7 +37,7 @@ class DihedralScanRepeater(DihedralScanner):
                 if len(self.dihedrals) == 2:
                     print(self.draw_ramachandran_plot())
                 else:
-                    print(self.draw_ascii_image())
+                    print(self.draw_ansi_image())
             # this function will try to read cache and decide if new jobs needs to run
             self.launch_opt_jobs()
             # Break if any job was not found in the current cache
