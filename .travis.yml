@@ -29,7 +29,7 @@ install:
   - source activate test
 
     # Build and install package
-  - bash devtools/travis-ci/install-cctools-62.sh
+  - bash devtools/travis-ci/install-cctools.sh
   - python setup.py develop --no-deps
 
     # Print versions
