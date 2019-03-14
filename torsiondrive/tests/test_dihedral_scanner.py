@@ -6,7 +6,7 @@ import pytest
 import sys
 import numpy as np
 from torsiondrive.dihedral_scanner import DihedralScanner, Molecule
-from torsiondrive.qm_engine import QMEngine
+from torsiondrive.qm_engine import EngineBlank
 from torsiondrive.priority_queue import PriorityQueue
 
 def test_torsiondrive_imported():
@@ -17,7 +17,7 @@ def test_dihedral_scanner_setup():
     """
     Testing DihedralScanner Setup for 1-D to 4-D Scans
     """
-    engine = QMEngine()
+    engine = EngineBlank()
     for dim in range(1, 5):
         print("Testing %d-D scan setup" % dim)
         dihedrals = [list(range(d, d+4)) for d in range(dim)]
@@ -37,7 +37,7 @@ def test_dihedral_scanner_methods():
     m.elem = ['H'] * 5
     m.xyzs = [np.array([[0, 0, 0], [0, 1, 0], [0, 0, 1], [1, 1, 1], [1, 0, 0]], dtype=float)*0.5]
     m.build_topology()
-    engine = QMEngine()
+    engine = EngineBlank()
     dihedrals = [[0,1,2,3], [1,2,3,4]]
     scanner = DihedralScanner(engine, dihedrals=dihedrals, grid_spacing=[30, 30], init_coords_M=m)
     # test methods
@@ -59,7 +59,7 @@ def test_dihedral_scanner_range_masks():
     m.elem = ['H'] * 5
     m.xyzs = [np.array([[0, 0, 0], [0, 1, 0], [0, 0, 1], [1, 1, 1], [1, 0, 0]], dtype=float)*0.5]
     m.build_topology()
-    engine = QMEngine()
+    engine = EngineBlank()
     dihedrals = [[0,1,2,3], [1,2,3,4]]
     # two ranges are tested, one is normal, one is "split" crossing boundaries
     dihedral_ranges = [[-120, 120], [150, 240]]

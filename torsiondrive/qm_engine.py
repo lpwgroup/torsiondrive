@@ -121,14 +121,24 @@ class QMEngine(object):
     # An empty engine will not run any real calculations
     # These functions will be defined in the subclasses
     def optimize_native(self):
+        raise NotImplementedError
+
+    def optimize_geomeTRIC(self):
+        raise NotImplementedError
+
+    def load_native_output(self):
+        raise NotImplementedError
+
+class EngineBlank(QMEngine):
+    """ A blank engine only used in testing """
+    def optimize_native(self):
         return
 
     def optimize_geomeTRIC(self):
         return
 
     def load_native_output(self):
-        return
-
+        return Molecule()
 
 class EnginePsi4(QMEngine):
     def load_input(self, input_file):
