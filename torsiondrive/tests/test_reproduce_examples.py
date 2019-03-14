@@ -18,7 +18,7 @@ def example_path(tmpdir_factory):
     # tmpdir_factory is a pytest built-in fixture that has "session" scope
     tmpdir = tmpdir_factory.mktemp('torsiondrive_test_tmp')
     tmpdir.chdir()
-    example_version = '0.9.5'
+    example_version = '0.9.5.1'
     url = f'https://github.com/lpwgroup/torsiondrive_examples/archive/v{example_version}.tar.gz'
     subprocess.run(f'wget -nc -q {url}', shell=True, check=True)
     subprocess.run(f'tar zxf v{example_version}.tar.gz', shell=True, check=True)
@@ -144,6 +144,11 @@ def test_reproduce_api_example(example_path):
     loaded_state = td_api.current_state_json_load(current_state)
     td_api.current_state_json_dump(loaded_state, 'new_current_state.json')
     assert filecmp.cmp('current_state.json', 'new_current_state.json')
+    # test calling td_api in command line
+    shutil.copy('next_jobs.json', 'orig_next_jobs.json')
+    sys.argv = 'torsiondrive-api current_state.json'.split()
+    td_api.main()
+    assert filecmp.cmp('next_jobs.json', 'orig_next_jobs.json')
 
 def test_reproduce_extra_constraints_example(example_path):
     """

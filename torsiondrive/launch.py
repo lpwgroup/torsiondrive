@@ -56,6 +56,7 @@ def load_dihedralfile(dihedralfile, zero_based_numbering=False):
     """
     dihedral_idxs = []
     dihedral_ranges = []
+    one_based_explicit = False # flag for user explicitly set one_based_numbering
     with open(dihedralfile) as infile:
         for line in infile:
             line = line.strip()
@@ -64,24 +65,31 @@ def load_dihedralfile(dihedralfile, zero_based_numbering=False):
                 comment = line[1:].strip().lower()
                 if comment == 'zero_based_numbering':
                     zero_based_numbering = True
+                    if one_based_explicit is True:
+                        raise ValueError("Can not specify both zero_based_numbering and one_based_indexing.")
                 elif comment == 'one_based_numbering':
-                    if zero_based_numbering == True:
+                    one_based_explicit = True
+                    if zero_based_numbering is True:
                         raise ValueError("Can not specify both zero_based_numbering and one_based_indexing.")
             else:
                 ls = line.split()
                 if len(ls) == 4:
                     dihedral_idxs.append([int(i)-1 for i in ls])
                 elif len(ls) == 6:
-                    # insert default values [-180, 180] for missing values above
+                    # insert default range [-180, 180] for missing values above
                     for _ in range(len(dihedral_idxs) - len(dihedral_ranges)):
                         dihedral_ranges.append([-180, 180])
                     dihedral_idxs.append([int(i)-1 for i in ls[:4]])
                     dihedral_ranges.append([int(v) for v in ls[4:]])
                 else:
                     raise ValueError(f'Input line can not be recognized, should be 4 or 6 numbers\n{line}')
+            # insert default range [-180, 180] for missing values
+            if len(dihedral_ranges) > 0:
+                for _ in range(len(dihedral_idxs) - len(dihedral_ranges)):
+                    dihedral_ranges.append([-180, 180])
     # conver dihedral indices if zero based
     if zero_based_numbering:
-        dihedral_idxs = [[i+i for i in d] for d in dihedral_idxs]
+        dihedral_idxs = [[i+1 for i in d] for d in dihedral_idxs]
     # check all dihedrals valid (>= 0)
     assert all(i >= 0 for d in dihedral_idxs for i in d), f'Dihedral indices {dihedral_idxs} error, all should >= 0'
     # check all ranges valid [-180, 180]

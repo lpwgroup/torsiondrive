@@ -5,7 +5,7 @@ Test for qm_engine module
 import os
 import subprocess
 import pytest
-from torsiondrive.qm_engine import QMEngine, EnginePsi4, EngineQChem, EngineTerachem
+from torsiondrive.qm_engine import QMEngine, EngineBlank, EnginePsi4, EngineQChem, EngineTerachem
 
 def test_qm_engine():
     """
@@ -25,9 +25,19 @@ def test_qm_engine():
     assert engine.find_finished_jobs([], wait_time=1) == set()
     with pytest.raises(OSError):
         engine.load_task_result_m()
-    assert engine.optimize_native() is None
-    assert engine.optimize_geomeTRIC() is None
-    assert engine.load_native_output() is None
+    with pytest.raises(NotImplementedError):
+        engine.optimize_native()
+    with pytest.raises(NotImplementedError):
+        engine.optimize_geomeTRIC()
+    with pytest.raises(NotImplementedError):
+        engine.load_native_output()
+
+
+def test_engine_blank():
+    engine = EngineBlank()
+    engine.optimize_native()
+    engine.optimize_geomeTRIC()
+    engine.load_native_output()
 
 
 def test_engine_psi4_native(tmpdir):
