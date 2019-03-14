@@ -65,7 +65,7 @@ class WorkQueue:
         n_running_workers = stats.workers_busy
         n_all_workers = stats.total_workers_joined - stats.total_workers_removed
         n_finished_jobs = stats.total_tasks_complete - self.tasks_failed
-        n_total_jobs = stats.total_tasks_dispatched - self.tasks_failed
+        n_total_jobs = stats.tasks_submitted - self.tasks_failed
         return n_running_workers, n_all_workers, n_finished_jobs, n_total_jobs
 
     def print_queue_status(self, min_time_interval=10, max_time_interval=3600):
