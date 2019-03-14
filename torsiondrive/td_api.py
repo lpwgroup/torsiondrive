@@ -12,7 +12,7 @@ from collections import defaultdict
 import numpy as np
 from torsiondrive.dihedral_scanner import DihedralScanner, get_geo_key
 from torsiondrive.priority_queue import PriorityQueue
-from torsiondrive.qm_engine import QMEngine
+from torsiondrive.qm_engine import EngineBlank
 from geometric.molecule import Molecule
 from geometric.nifty import bohr2ang, ang2bohr
 
@@ -157,8 +157,9 @@ def get_next_jobs(current_state, verbose=False):
     init_coords_M.elem = current_state['elements']
     init_coords_M.xyzs = current_state['init_coords']
     init_coords_M.build_topology()
-    # create a new scanner object
-    scanner = DihedralScanRepeater(QMEngine(), dihedrals, grid_spacing, init_coords_M=init_coords_M, verbose=verbose)
+    # create a new scanner object with blank engine
+    engine = EngineBlank()
+    scanner = DihedralScanRepeater(engine, dihedrals, grid_spacing, init_coords_M=init_coords_M, verbose=verbose)
     # rebuild the task_cache for scanner
     scanner.rebuild_task_cache(current_state['grid_status'])
     # run the scanner until some calculation is not found in cache
