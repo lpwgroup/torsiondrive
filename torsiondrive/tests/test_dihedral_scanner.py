@@ -43,6 +43,7 @@ def test_dihedral_scanner_methods():
     # test methods
     gid = (120, -60)
     assert scanner.get_dihedral_id(m) == gid
+    assert scanner.get_dihedral_id(m, check_grid_id=(120, -90)) == None
     assert set(scanner.grid_neighbors(gid)) == {(90, -60), (150, -60), (120, -90), (120, -30)}
     assert set(scanner.grid_full_neighbors(gid)) == {(90, -90), (90, -30), (150, -90), (150, -30)}
     scanner.push_initial_opt_tasks()
