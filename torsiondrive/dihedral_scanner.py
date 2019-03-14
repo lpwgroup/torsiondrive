@@ -162,17 +162,18 @@ class DihedralScanner:
         """
         Compute the closest grid ID for molecule (only first frame)
         If check_grid_id is given, will perform a check if the computed dihedral_values are close to the grid_id provided
+        If the check is not passed, this function will return None
         """
         dihedral_values = np.array([molecule.measure_dihedrals(*d)[0] for d in self.dihedrals])
         if check_grid_id is not None:
             assert len(check_grid_id) == len(dihedral_values), "Grid dimensions should be the same!"
             for dv, dref in zip(dihedral_values, check_grid_id):
                 diff = abs(dv - dref)
-                if min(diff, abs(360-diff)) > 0.9:
+                if min(diff, abs(360-diff)) > 0.5:
                     print("Warning! dihedral values inconsistent with check_grid_id")
-                    print('dihedral_values', dihedral_values, 'check_grid_id', check_grid_id)
-                    break
-        # here we shift the dihedral by +180 then shift back because -180 the actual origin of the grid
+                    print(f'dihedral_values {dihedral_values}; check_grid_id {check_grid_id}')
+                    return None
+        # here we shift the dihedral by +180 then shift back because -180 is the actual origin of the grid
         # this allows grid_spacing of 24
         dihedral_id = (np.round((dihedral_values + 180) / self.grid_spacing) * self.grid_spacing - 180).astype(int)
         # we return a tuples as the grid_id
@@ -275,13 +276,13 @@ class DihedralScanner:
             for grid_id, m in current_best_grid_m.items():
                 if grid_id not in self.grid_energies:
                     if self.verbose:
-                        print("First energy for grid_id %s = %f" % (str(grid_id), m.qm_energies[0]))
+                        print(f"First energy for grid_id {grid_id} = {m.qm_energies[0]}")
                     self.grid_energies[grid_id] = m.qm_energies[0]
                     self.grid_final_geometries[grid_id] = m.xyzs[0]
                     newly_updated_grid_m.append((grid_id, m))
                 elif m.qm_energies[0] < self.grid_energies[grid_id] - self.energy_decrease_thresh:
                     if self.verbose:
-                        print("Energy for grid_id %s decreased from %f to %f" % (str(grid_id), self.grid_energies[grid_id], m.qm_energies[0]))
+                        print(f"Energy for grid_id {grid_id} decreased from {self.grid_energies[grid_id]} to {m.qm_energies[0]}")
                     self.grid_energies[grid_id] = m.qm_energies[0]
                     self.grid_final_geometries[grid_id] = m.xyzs[0]
                     newly_updated_grid_m.append((grid_id, m))
@@ -432,8 +433,10 @@ class DihedralScanner:
     def launch_opt_jobs(self):
         """
         Launch constrained optimizations for molecules in opt_queue
-        The current opt_queue will be cleaned up
-        Return a dictionary that contains path and grid_ids: { path: (from_grid_id, to_grid_id) }
+        Tasks current opt_queue will be popped in order.
+        If a task exist in self.task_cache, the cached result will be checked, then put into self.current_finished_job_results
+        Else, the task will be launched by self.launch_constrained_opt, and information is saved as
+        self.running_job_path_info[job_path] = m, from_grid_id, to_grid_id
         """
         assert hasattr(self, 'running_job_path_info') and hasattr(self, 'current_finished_job_results')
         while len(self.opt_queue) > 0:
@@ -448,7 +451,10 @@ class DihedralScanner:
                 result_m.qm_energies = [final_energy]
                 result_m.build_topology()
                 grid_id = self.get_dihedral_id(result_m, check_grid_id=to_grid_id)
-                self.current_finished_job_results.push((result_m, grid_id), priority=job_folder)
+                if grid_id is None:
+                    print(f"Cached result from {job_folder} is ignored because constrained optimization result is not close enough to grid id {to_grid_id}")
+                else:
+                    self.current_finished_job_results.push((result_m, grid_id), priority=job_folder)
                 #self.grid_status[to_grid_id].append((m.xyzs[0], final_geo, final_energy))
             else:
                 job_path = self.launch_constrained_opt(m, to_grid_id)
@@ -488,10 +494,12 @@ class DihedralScanner:
 
     def wait_extract_finished_jobs(self):
         """
-        Interface with engine to check if any job finished
-        Will wait infinitely here until at least one job finished
-        The finished job paths will be removed from self.running_job_path_info
-        The finished job results (m, grid_id) will be added to self.current_finished_job_results
+        Interface with engine to check if any job finished.
+        Will wait infinitely here until at least one job finished.
+        The finished job paths will be removed from self.running_job_path_info.
+        The finished job results (m, grid_id) will be checked,
+        if the result geometry is not close enough to target grid id, the result will be ignored.
+        Results passed the check will be added to self.current_finished_job_results.
         """
         if len(self.running_job_path_info) == 0:
             print("No job running, returning")
@@ -506,12 +514,15 @@ class DihedralScanner:
             m_init, from_grid_id, to_grid_id = self.running_job_path_info.pop(job_path)
             # call the engine to parse output file and return final geometry/energy in a new molecule
             m = self.engine.load_task_result_m(job_path)
-            # we will check here if the optimized structure has the desired dihedral ids
-            grid_id = self.get_dihedral_id(m, check_grid_id=to_grid_id)
             # save the parsed task result to disk
             self.save_task_cache(job_path, m_init, m, m.qm_energies[0])
-            # each finished job result is a tuple of (m, grid_id)
-            self.current_finished_job_results.push((m, grid_id), priority=job_path)
+            # we will check here if the optimized structure has the desired dihedral ids
+            grid_id = self.get_dihedral_id(m, check_grid_id=to_grid_id)
+            if grid_id is None:
+                print(f"Constrained optimization result at {job_path} is skipped, since it's not enough to grid id {to_grid_id}")
+            else:
+                # each finished job result is a tuple of (m, grid_id)
+                self.current_finished_job_results.push((m, grid_id), priority=job_path)
 
     def finish(self):
         """ Write qdata.txt and scan.xyz file based on converged scan results """
