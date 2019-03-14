@@ -10,7 +10,7 @@ import work_queue
 class WorkQueue:
     def __init__(self, port, name='dihedral'):
         work_queue.set_debug_flag('all')
-        wq = work_queue.WorkQueue(port=port, exclusive=False, shutdown=False)
+        wq = work_queue.WorkQueue(port=port)
         wq.specify_keepalive_interval(8640000)
         wq.specify_name(name)
         self.wq = wq
