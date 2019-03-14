@@ -7,12 +7,17 @@ import os
 import sys
 import subprocess
 
+try:
+    import work_queue
+except:
+    pass
+
 @pytest.mark.skipif("work_queue" not in sys.modules, reason='work_queue not found')
 def test_work_queue():
     from torsiondrive.wq_tools import WorkQueue
     wq = WorkQueue(56789)
     wq.submit('echo test > test.txt', [], ['test.txt'])
-    assert wq.get_queue_status() == (0,0,0,0)
+    assert wq.get_queue_status() == (0,0,0,1)
     # submit a worker
     p = subprocess.Popen("$HOME/opt/cctools/bin/work_queue_worker localhost 56789 -t 1", shell=True)
     for _ in range(10):
