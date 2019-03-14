@@ -5,10 +5,10 @@ echo "Downloading source."
 version="7.0.10"
 cctools="cctools-$version"
 rm -rf cctools*
-wget https://github.com/lpwgroup/cctools/archive/v$(version).tar.gz
+wget https://github.com/lpwgroup/cctools/archive/v${version}.tar.gz
 echo "Extracting archive."
-tar xzf v$(version).tar.gz
-cd cctools-$(version)
+tar xzf v${version}.tar.gz
+cd cctools-${version}
 
 # Increase all sorts of timeouts.
 sed -i s/"timeout = 5;"/"timeout = 7200;"/g work_queue/src/*.c
