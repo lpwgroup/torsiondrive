@@ -122,7 +122,7 @@ class DihedralScanRepeater(DihedralScanner):
                 result_m.build_topology()
                 grid_id = self.get_dihedral_id(result_m, check_grid_id=to_grid_id)
                 if grid_id is None:
-                    print(f"Cached result from {job_folder} is ignored because constrained optimization result is not close enough to grid id {to_grid_id}")
+                    print(f"Cached result from {job_folder} is ignored because optimized geometry is far from grid id {to_grid_id}")
                 else:
                     self.current_finished_job_results.push((result_m, grid_id), priority=job_folder)
             else:

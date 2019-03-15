@@ -452,7 +452,7 @@ class DihedralScanner:
                 result_m.build_topology()
                 grid_id = self.get_dihedral_id(result_m, check_grid_id=to_grid_id)
                 if grid_id is None:
-                    print(f"Cached result from {job_folder} is ignored because constrained optimization result is not close enough to grid id {to_grid_id}")
+                    print(f"Cached result from {job_folder} is ignored because optimized geometry is far from grid id {to_grid_id}")
                 else:
                     self.current_finished_job_results.push((result_m, grid_id), priority=job_folder)
                 #self.grid_status[to_grid_id].append((m.xyzs[0], final_geo, final_energy))
@@ -519,7 +519,7 @@ class DihedralScanner:
             # we will check here if the optimized structure has the desired dihedral ids
             grid_id = self.get_dihedral_id(m, check_grid_id=to_grid_id)
             if grid_id is None:
-                print(f"Constrained optimization result at {job_path} is skipped, since it's not enough to grid id {to_grid_id}")
+                print(f"Constrained optimization result at {job_path} is skipped, because final geometry is far from grid id {to_grid_id}")
             else:
                 # each finished job result is a tuple of (m, grid_id)
                 self.current_finished_job_results.push((m, grid_id), priority=job_path)
