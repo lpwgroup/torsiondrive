@@ -84,12 +84,18 @@ def check_conflict_constraits(constraints_dict, dihedral_idxs):
     Utility function to check if any extra constraints in constraints_dict is conflict with the scanning dihedrals
     """
     distinct_dihedrals = set(tuple(min(d, d[::-1])) for d in dihedral_idxs)
+    distinct_dihedral_centers = set(tuple(min(d[1:3], d[2:0:-1])) for d in dihedral_idxs)
     for constraits_list in constraints_dict.values():
         for spec_dict in constraits_list:
             ctype, indices = spec_dict['type'], spec_dict['indices']
-            if ctype == 'dihedral' and tuple(min(indices, indices[::-1])) in distinct_dihedrals:
-                raise ValueError(f"Conflict dihedral constraints found in:\n{spec_dict}\n with {dihedral_idxs}")
-            if ctype == 'xyz':
+            if ctype == 'dihedral':
+                if tuple(min(indices, indices[::-1])) in distinct_dihedrals:
+                    # the same dihedral appears in extra_constraints
+                    raise ValueError(f"Conflict dihedral constraints found in:\n{spec_dict}\n with {dihedral_idxs}")
+                elif tuple(min(indices[1:3], indices[2:0:-1])) in distinct_dihedral_centers:
+                    # Lee-Ping pointed out that geomeTRIC have issue if two dihedral constraints share the same center atoms
+                    raise ValueError(f"Extra dihedral constraint in:\n{spec_dict}\n share the same center atoms with {dihedral_idxs}")
+            elif ctype == 'xyz':
                 indices_set = set(indices)
                 # check if all 4 indices defining a dihedral are froze
                 if any(set(d).issubset(indices_set) for d in distinct_dihedrals):
