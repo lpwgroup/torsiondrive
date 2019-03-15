@@ -116,8 +116,11 @@ def test_check_conflict_constraits():
     check_conflict_constraits(constraints_dict, dihedral_idxs)
     # test conflicting
     with pytest.raises(ValueError):
-        # dihedral conflict
+        # dihedral conflict (same as scanning)
         check_conflict_constraits(constraints_dict, [[0,1,2,3]])
+    with pytest.raises(ValueError):
+        # dihedral conflict (share the same center atoms 1, 2)
+        check_conflict_constraits(constraints_dict, [[5,2,1,6]])
     with pytest.raises(ValueError):
         # xyz conflict
         check_conflict_constraits(constraints_dict, [[0,1,2,5]])
