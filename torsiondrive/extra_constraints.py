@@ -79,7 +79,7 @@ def make_constraints_dict(constraints_string):
                 raise ValueError(f"Line {line}\nConstraints mode {constraints_mode} is not supported")
     return constraints_dict
 
-def check_conflict_constraits(constraints_dict, dihedral_idxs):
+def check_conflict_constraints(constraints_dict, dihedral_idxs):
     """
     Utility function to check if any extra constraints in constraints_dict is conflict with the scanning dihedrals
     """
