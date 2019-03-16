@@ -2,13 +2,13 @@
 
 # Download latest version from website.
 echo "Downloading source."
-cctools="cctools-6.2.10"
-cctools_src="$cctools-source"
-rm -rf $cctools_src $cctools_src.tar*
-wget http://www3.nd.edu/~ccl/software/files/$cctools_src.tar.gz
+version="7.0.10"
+cctools="cctools-$version"
+rm -rf cctools*
+wget https://github.com/lpwgroup/cctools/archive/v${version}.tar.gz
 echo "Extracting archive."
-tar xzf $cctools_src.tar.gz
-cd $cctools_src
+tar xzf v${version}.tar.gz
+cd cctools-${version}
 
 # Increase all sorts of timeouts.
 sed -i s/"timeout = 5;"/"timeout = 7200;"/g work_queue/src/*.c

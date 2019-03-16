@@ -1,13 +1,16 @@
 language: python
 
 # Run jobs on container-based infrastructure, can be overridden per job
-dist: trusty
+dist: xenial
 
 matrix:
   include:
     - os: linux
       python: 3.6
       env: PYTHON_VER=3.6
+    - os: linux
+      python: 3.7
+      env: PYTHON_VER=3.7
 
 before_install:
   # Additional info about the build
@@ -26,7 +29,7 @@ install:
   - source activate test
 
     # Build and install package
-  - bash devtools/travis-ci/install-cctools-62.sh
+  - bash devtools/travis-ci/install-cctools.sh
   - python setup.py develop --no-deps
 
     # Print versions

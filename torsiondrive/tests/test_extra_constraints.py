@@ -3,7 +3,7 @@ Unit and regression test for the torsiondrive extra constraints feature
 """
 
 import pytest
-from torsiondrive.extra_constraints import make_constraints_dict, check_conflict_constraits, \
+from torsiondrive.extra_constraints import make_constraints_dict, check_conflict_constraints, \
     build_geometric_constraint_string, build_terachem_constraint_string
 
 
@@ -90,9 +90,9 @@ def test_make_constraints_dict():
     with pytest.raises(AssertionError):
         make_constraints_dict(wrong_constraits_string)
 
-def test_check_conflict_constraits():
+def test_check_conflict_constraints():
     """
-    Test the check_conflict_constraits() function
+    Test the check_conflict_constraints() function
 
     Notes
     -----
@@ -110,17 +110,20 @@ def test_check_conflict_constraits():
     '''
     constraints_dict = make_constraints_dict(constraits_string)
     # empty check
-    check_conflict_constraits(constraints_dict, [])
+    check_conflict_constraints(constraints_dict, [])
     # test valid constraints_dict when not conflicting
     dihedral_idxs = [[1,2,3,4], [2,3,4,5]]
-    check_conflict_constraits(constraints_dict, dihedral_idxs)
+    check_conflict_constraints(constraints_dict, dihedral_idxs)
     # test conflicting
     with pytest.raises(ValueError):
-        # dihedral conflict
-        check_conflict_constraits(constraints_dict, [[0,1,2,3]])
+        # dihedral conflict (same as scanning)
+        check_conflict_constraints(constraints_dict, [[0,1,2,3]])
+    with pytest.raises(ValueError):
+        # dihedral conflict (share the same center atoms 1, 2)
+        check_conflict_constraints(constraints_dict, [[5,2,1,6]])
     with pytest.raises(ValueError):
         # xyz conflict
-        check_conflict_constraits(constraints_dict, [[0,1,2,5]])
+        check_conflict_constraints(constraints_dict, [[0,1,2,5]])
 
 def test_build_geometric_constraint_string():
     """
