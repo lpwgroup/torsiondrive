@@ -28,7 +28,7 @@ install:
   - python devtools/scripts/create_conda_env.py -n=test -p=$PYTHON_VER devtools/conda-envs/psi.yaml
 
     # Activate the test environment
-  - conda activate test
+  - source activate test
 
     # Build and install package
   - bash devtools/travis-ci/install-cctools.sh
