@@ -12,12 +12,13 @@ def check_all_float(iterable):
         return False
 
 class QMEngine(object):
-    def __init__(self, input_file=None, work_queue=None, native_opt=False, extra_constraints=None):
+    def __init__(self, input_file=None, work_queue=None, native_opt=False, extra_constraints=None, combination=None):
         self.temp_type = None # will be set to either "gradient" or "optimize" later
         self.work_queue = work_queue
         self.native_opt = native_opt
         self.extra_constraints = extra_constraints
         self.rootpath = os.getcwd()
+        self.combination = combination
         if input_file is not None:
             self.load_input(input_file)
         else:
@@ -138,6 +139,52 @@ class EngineBlank(QMEngine):
 
     def load_native_output(self):
         return Molecule()
+
+
+class OpenMMEngine(QMEngine):
+    """Openmm engine class, take pdb and input.xml and run new geometric."""
+    def load_input(self, input_file):
+        """Load the pdb file into the molecule object"""
+
+        self.M = Molecule(input_file)
+        self.openmm = open(input_file, 'r').readlines()
+        self.xml = open('state.xml', 'r').readlines()
+
+    def write_input(self):
+        """write the pdb and xml file for geometric"""
+        with open('openmm.pdb', 'w+') as pdb:
+            for line in self.openmm:
+                pdb.write(line)
+        with open('state.xml', 'w+') as out:
+            for line in self.xml:
+                out.write(line)
+
+    def load_geomeTRIC_output(self):
+        """ Load the optimized geometry and energy into a new molecule object and return """
+        # the name of the file is consistent with the --prefix tdrive option,
+        # this also requires the input file NOT be named to sth like tdrive.in
+        # otherwise the output will become tdrive_optim.xyz
+        if not os.path.isfile('opt.xyz'):
+            raise OSError("geomeTRIC output opt.xyz file not found")
+        m = Molecule('opt.xyz')[-1]
+        m.qm_energies = [float(m.comms[0].rsplit(maxsplit=1)[-1])]
+        return m
+
+    def optimize_geomeTRIC(self):
+        """ run the constrained optimization using geomeTRIC package, in 3 steps:
+        1. Write a constraints.txt file.
+        2. Write a gradient job input file.
+        3. Run the job
+        """
+        # sep 1
+        self.write_constraints_txt()
+        # step 2
+        self.write_input()
+        # set3
+        self.run(
+            f'geometric-optimize --qccnv --reset --epsilon 0.0 --maxiter 300 --pdb openmm.pdb --combination '
+            f'{self.combination} --openmm state.xml constraints.txt > optimize.log',
+            input_files=['openmm.pdb', 'constraints.txt'], output_files=['optimize.log', 'opt.xyz'])
 
 class EnginePsi4(QMEngine):
     def load_input(self, input_file):
