@@ -50,12 +50,15 @@ class DihedralScanner:
         The threshold of the smallest energy decrease amount to trigger activating optimizations from grid point.
     dihedral_ranges: List[(lower, upper), ..]
         A list of dihedral range limits as a pair (lower, upper), each range corresponds to the dihedrals in input.
+    energy_upper_limit: Float or None
+        The threshold if the energy of a grid point that is higher than the current global minimum, to start new optimizations, in unit of a.u.
+        i.e. if energy_upper_limit = 0.05, current global minimum energy is -9.9 , then a new task starting with energy -9.8 will be skipped.
     extra_constraints: Dict
         A nested dictionary specifing extra constraints in geomeTRIC format. Details in extra_constraints.py
     verbose: bool
         let methods print more information when running
     """
-    def __init__(self, engine, dihedrals, grid_spacing, init_coords_M=None, energy_decrease_thresh=0.00001, dihedral_ranges=None, extra_constraints=None, verbose=False):
+    def __init__(self, engine, dihedrals, grid_spacing, init_coords_M=None, energy_decrease_thresh=0.00001, dihedral_ranges=None, energy_upper_limit=None, extra_constraints=None, verbose=False):
         self.engine = engine
         # store verbose flag for later printing
         self.verbose = verbose
@@ -75,6 +78,9 @@ class DihedralScanner:
         # validate dihedral ranges and build mask
         self.dihedral_ranges = dihedral_ranges if dihedral_ranges is not None else [] # for sanity check
         self.dihedral_mask = self.build_dihedral_mask(dihedral_ranges)
+        # energy limit for high energy points
+        self.global_minimum_energy = None
+        self.energy_upper_limit = float(energy_upper_limit) if energy_upper_limit is not None else None
         # extra_constraints does not change, will be passed to engine for generating input files
         self.extra_constraints = extra_constraints
         # create a optiimization job queue
@@ -274,16 +280,20 @@ class DihedralScanner:
             # compare the best results between current iteration and all previous iterations
             newly_updated_grid_m = []
             for grid_id, m in current_best_grid_m.items():
+                energy = m.qm_energies[0]
+                # update current global minimum
+                if self.global_minimum_energy is None or energy < self.global_minimum_energy:
+                    self.global_minimum_energy = energy
                 if grid_id not in self.grid_energies:
                     if self.verbose:
-                        print(f"First energy for grid_id {grid_id} = {m.qm_energies[0]}")
-                    self.grid_energies[grid_id] = m.qm_energies[0]
+                        print(f"First energy for grid_id {grid_id} = {energy}")
+                    self.grid_energies[grid_id] = energy
                     self.grid_final_geometries[grid_id] = m.xyzs[0]
                     newly_updated_grid_m.append((grid_id, m))
-                elif m.qm_energies[0] < self.grid_energies[grid_id] - self.energy_decrease_thresh:
+                elif energy < self.grid_energies[grid_id] - self.energy_decrease_thresh:
                     if self.verbose:
-                        print(f"Energy for grid_id {grid_id} decreased from {self.grid_energies[grid_id]} to {m.qm_energies[0]}")
-                    self.grid_energies[grid_id] = m.qm_energies[0]
+                        print(f"Energy for grid_id {grid_id} decreased from {self.grid_energies[grid_id]} to {energy}")
+                    self.grid_energies[grid_id] = energy
                     self.grid_final_geometries[grid_id] = m.xyzs[0]
                     newly_updated_grid_m.append((grid_id, m))
                     # we record the refined_grid_ids here to be printed as green tiles in draw_ramachandran_plot()
@@ -325,11 +335,21 @@ class DihedralScanner:
             True if the task is valid
         """
         m, from_grid_id, to_grid_id = task
+        # check if dihedral is in mask
         if self.dihedral_mask is not None:
             for d, dmask in zip(to_grid_id, self.dihedral_mask):
                 if d not in dmask:
                     if self.verbose:
                         print(f"Task with target grid_id {to_grid_id} skipped because {d} doesn't fit in range limit")
+                    return False
+        # check if energy is higher than limit
+        if self.energy_upper_limit is not None:
+            if self.global_minimum_energy is not None and hasattr(m, 'qm_energies') and len(m.qm_energies) > 0:
+                abs_energy_upper_limit = self.global_minimum_energy + self.energy_upper_limit
+                if m.qm_energies[0] > abs_energy_upper_limit:
+                    if self.verbose:
+                        print(f"Task {from_grid_id} => {to_grid_id} skipped")
+                        print(f"Reason: starting energy {m.qm_energies[0]} is more than {self.energy_upper_limit} higher than current global minimum {self.global_minimum_energy} in a.u.")
                     return False
         return True
 
@@ -380,6 +400,8 @@ class DihedralScanner:
             assert np.array_equal(self.dihedral_ranges, scanner_settings['dihedral_ranges']), 'Setting [dihedral_ranges] '+err_msg
         if 'extra_constraints' in scanner_settings:
             assert json.dumps(self.extra_constraints, sort_keys=True) == json.dumps(scanner_settings['extra_constraints'], sort_keys=True), 'Setting [extra_constraints] '+err_msg
+        if 'energy_upper_limit' in scanner_settings:
+            assert self.energy_upper_limit == scanner_settings['energy_upper_limit'], 'Setting [energy_upper_limit] '+err_msg
         # read all finished jobs in tmp folder
         self.tmp_folder_dict = dict()
         n_cache = 0
@@ -417,6 +439,7 @@ class DihedralScanner:
             'energy_decrease_thresh': self.energy_decrease_thresh,
             'dihedral_ranges': self.dihedral_ranges,
             'extra_constraints': self.extra_constraints,
+            'energy_upper_limit': self.energy_upper_limit,
         }
         settings_fname = os.path.join(self.rootpath, self.tmp_folder_name, 'scanner_settings.json')
         with open(settings_fname, 'w') as jsonfile:
