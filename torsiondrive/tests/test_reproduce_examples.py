@@ -18,7 +18,7 @@ def example_path(tmpdir_factory):
     # tmpdir_factory is a pytest built-in fixture that has "session" scope
     tmpdir = tmpdir_factory.mktemp('torsiondrive_test_tmp')
     tmpdir.chdir()
-    example_version = '0.9.5.2'
+    example_version = '0.9.6'
     url = f'https://github.com/lpwgroup/torsiondrive_examples/archive/v{example_version}.tar.gz'
     subprocess.run(f'wget -nc -q {url}', shell=True, check=True)
     subprocess.run(f'tar zxf v{example_version}.tar.gz', shell=True, check=True)
@@ -161,6 +161,33 @@ def test_reproduce_extra_constraints_example(example_path):
     shutil.copy('scan.xyz', 'orig_scan.xyz')
     argv = sys.argv[:]
     sys.argv = 'torsiondrive-launch qc.in dihedrals.txt -g 15 -e qchem -c constraints.txt -v'.split()
+    launch.main()
+    sys.argv = argv
+    assert filecmp.cmp('scan.xyz', 'orig_scan.xyz')
+
+def test_reproduce_energy_upper_limit_example(example_path):
+    """
+    Testing Reproducing examples/extra_constraints
+    """
+    from torsiondrive import launch
+    os.chdir(example_path)
+    os.chdir('energy_upper_limit')
+    # reproduce ring example
+    os.chdir('limit_ring_0.05')
+    subprocess.run('tar zxf opt_tmp.tar.gz', shell=True, check=True)
+    shutil.copy('scan.xyz', 'orig_scan.xyz')
+    argv = sys.argv[:]
+    sys.argv = 'torsiondrive-launch run.in dihedrals.txt -e terachem -g 15 --energy_upper_limit 0.05 -v'.split()
+    launch.main()
+    sys.argv = argv
+    assert filecmp.cmp('scan.xyz', 'orig_scan.xyz')
+    os.chdir('..')
+    # reproduce ring example
+    os.chdir('limit_flexible_0.01')
+    subprocess.run('tar zxf opt_tmp.tar.gz', shell=True, check=True)
+    shutil.copy('scan.xyz', 'orig_scan.xyz')
+    argv = sys.argv[:]
+    sys.argv = 'torsiondrive-launch run.in dihedrals.txt -e terachem -g 10 --energy_upper_limit 0.01 -v'.split()
     launch.main()
     sys.argv = argv
     assert filecmp.cmp('scan.xyz', 'orig_scan.xyz')
