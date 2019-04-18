@@ -254,8 +254,8 @@ class EnginePsi4(QMEngine):
         # step 2
         self.write_input('input.dat')
         # step 3
-        cmd = 'geometric-optimize --prefix tdrive --qccnv --reset --epsilon 0.0 --enforce 0.1 --psi4 input.dat constraints.txt > optimize.log'
-        self.run(cmd, input_files=['input.dat', 'constraints.txt'], output_files=['optimize.log', 'tdrive.xyz'])
+        cmd = 'geometric-optimize --prefix tdrive --qccnv --reset --epsilon 0.0 --enforce 0.1 --psi4 input.dat constraints.txt'
+        self.run(cmd, input_files=['input.dat', 'constraints.txt'], output_files=['tdrive.log', 'tdrive.xyz'])
 
     def load_native_output(self, filename='output.dat'):
         """ Load the optimized geometry and energy into a new molecule object and return """
@@ -395,8 +395,8 @@ class EngineQChem(QMEngine):
         # step 2
         self.write_input('qc.in')
         # step 3
-        cmd = 'geometric-optimize --prefix tdrive --qccnv --reset --epsilon 0.0 --enforce 0.1 --qchem qc.in constraints.txt > optimize.log'
-        self.run(cmd, input_files=['qc.in', 'constraints.txt'], output_files=['optimize.log', 'tdrive.xyz'])
+        cmd = 'geometric-optimize --prefix tdrive --qccnv --reset --epsilon 0.0 --enforce 0.1 --qchem qc.in constraints.txt'
+        self.run(cmd, input_files=['qc.in', 'constraints.txt'], output_files=['tdrive.log', 'tdrive.xyz'])
 
     def load_native_output(self, filename='qc.out'):
         """ Load the optimized geometry and energy into a new molecule object and return """
@@ -495,8 +495,8 @@ class EngineTerachem(QMEngine):
         # step 2
         self.write_input()
         # step 3
-        cmd = 'geometric-optimize --prefix tdrive --qccnv --reset --epsilon 0.0 --enforce 0.1 run.in constraints.txt > optimize.log'
-        self.run(cmd, input_files=['run.in', self.tera_geo_file, 'constraints.txt'], output_files=['optimize.log', 'tdrive.xyz'])
+        cmd = 'geometric-optimize --prefix tdrive --qccnv --reset --epsilon 0.0 --enforce 0.1 run.in constraints.txt'
+        self.run(cmd, input_files=['run.in', self.tera_geo_file, 'constraints.txt'], output_files=['tdrive.log', 'tdrive.xyz'])
 
     def load_native_output(self):
         """ Load the optimized geometry and energy into a new molecule object and return """
