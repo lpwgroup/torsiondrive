@@ -58,7 +58,7 @@ class DihedralScanner:
     verbose: bool
         let methods print more information when running
     """
-    def __init__(self, engine, dihedrals, grid_spacing, init_coords_M=None, energy_decrease_thresh=0.00001, dihedral_ranges=None, energy_upper_limit=None, extra_constraints=None, verbose=False):
+    def __init__(self, engine, dihedrals, grid_spacing, init_coords_M=None, energy_decrease_thresh=None, dihedral_ranges=None, energy_upper_limit=None, extra_constraints=None, verbose=False):
         self.engine = engine
         # store verbose flag for later printing
         self.verbose = verbose
@@ -101,7 +101,7 @@ class DihedralScanner:
         # filename for storing finished task result
         self.task_result_fname = 'dihedral_scanner_task_result.p'
         # threshold for determining the energy decrease
-        self.energy_decrease_thresh = energy_decrease_thresh
+        self.energy_decrease_thresh = energy_decrease_thresh if energy_decrease_thresh is not None else 1e-5
 
     #----------------------
     # Initializing methods
