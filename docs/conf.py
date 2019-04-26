@@ -12,21 +12,21 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-# import os
-# import sys
-# sys.path.insert(0, os.path.abspath('.'))
+import os
+import sys
+sys.path.insert(0, os.path.abspath('..'))
 
 
 # -- Project information -----------------------------------------------------
 
-project = 'Dihedral scanner with wavefront propagation'
+project = 'TorsionDrive'
 copyright = "2018, Yudong Qiu, Lee-Ping Wang"
 author = 'Yudong Qiu, Lee-Ping Wang'
 
 # The short X.Y version
-version = ''
+version = '0.9.6'
 # The full version, including alpha/beta/rc tags
-release = ''
+release = '0.9.6'
 
 
 # -- General configuration ---------------------------------------------------
@@ -41,7 +41,10 @@ release = ''
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.mathjax',
+    'numpydoc',
 ]
+
+numpydoc_show_class_members = False
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
