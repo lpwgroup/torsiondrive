@@ -26,12 +26,6 @@ geomeTRIC + Psi4
 2-D torsion scans are relatively expensive. Therefore it is recommended to use a cheap QM method, or use
 the distributed method calling `cctools.work_queue`.
 
-Installation of cctools
-++++++++++++++++++++++++
-Installation of ``cctools`` is provided separately. A convenient bash script has been made to simply the process::
-
-    $bash torsiondrive/devtools/travis-ci/install-cctools.sh
-
 geomeTRIC + Psi4 distributed
 +++++++++++++++++++++++++++++++++++++++
  - Location: torsiondrive_examples/examples/propanol-2d/work_queue_qchem_geomeTRIC/

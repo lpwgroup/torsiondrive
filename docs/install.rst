@@ -50,3 +50,13 @@ Test torsiondrive with ``py.test``::
 
     cd torsiondrive
     py.test
+
+
+Installation of cctools
+------------------------
+The library ``cctools.work_queue`` is utilized to provide distributed computing feature in TorsionDrive.
+https://github.com/cooperative-computing-lab/cctools
+
+Installation of ``cctools`` is provided separately. A convenient bash script has been made to simplify the process::
+
+    $bash torsiondrive/devtools/travis-ci/install-cctools.sh
