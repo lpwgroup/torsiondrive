@@ -36,7 +36,6 @@ install:
 
     # Print versions
   - python -c "import geometric; print(geometric.__version__)"
-  - python -c "import work_queue; print(work_queue.__version__)"
 
 script:
   - travis_wait 100 pytest -v --cov=torsiondrive torsiondrive/tests/
