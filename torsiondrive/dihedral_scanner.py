@@ -140,8 +140,8 @@ class DihedralScanner:
         dihedral_mask: List[set(), ..]
             The dihedral mask is a list of sets, each set contains all available values for one dihedral angle
 
-        Note
-        ----
+        Notes
+        -----
         This function should be called after self.setup_grid()
         """
         if not dihedral_ranges: return None
@@ -382,7 +382,8 @@ class DihedralScanner:
         2. Read the result pickle file from each leaf folder, into task_cache
         If successful, self.tmp_folder_dict will be initialized, same as self.create_tmp_folder(),
         and self.task_cache will be populated, with task caches, defined in this way:
-            self.task_cache = {(30,-60): {geo_key: (final_geo, final_energy)}}
+
+        self.task_cache = {(30,-60): {geo_key: (final_geo, final_energy)}}
         """
         if self.verbose:
             print("Restoring from %s" % self.tmp_folder_name)
@@ -427,7 +428,9 @@ class DihedralScanner:
     def create_tmp_folder(self):
         """
         Create an empty tmp folder structure, save the paths for each grid point into self.tmp_folder_dict
-        Example:
+
+        Examples
+        --------
             self.tmp_folder_dict = {(30,-70): "opt_tmp/gid_+030_-070", ..}
         """
         assert hasattr(self, 'grid_ids'), 'Call self.setup_grid() first'

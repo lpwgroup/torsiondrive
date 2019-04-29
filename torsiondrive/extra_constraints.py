@@ -15,18 +15,21 @@ def make_constraints_dict(constraints_string):
     -------
     constraints_dict: dict
         A dictionary contains the definition of the extra constraints. The format is consistant with the JSON interface
-        of geomeTRIC. Example:
-        constraint_dict = {
-            'freeze': [{
-                "type": "xyz",
-                "indices": [0, 1, 2]
-            }],
-            'set': [{
-                "type": "angle",
-                "indices": [1, 0, 4],
-                "value": 110.0
-            }]
-        }
+        of geomeTRIC.
+
+    Examples
+    --------
+    >>> make_constraints_dict(r"$freeze\\nxyz 1-3\\n$set\\nangle 2 1 5 110.0")
+    {
+        'freeze': [{
+            'type': 'xyz',
+            'indices': [0, 1, 2]
+        }],
+        'set': [{
+            'type': 'angle',
+            'indices': [1, 0, 4],
+            'value': 110.0}]
+    }
 
     Notes
     -----
