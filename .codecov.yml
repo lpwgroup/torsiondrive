@@ -1,6 +1,6 @@
 coverage:
   ignore:
-    - torsiondrive/docs/.*
+    - docs/.*
     - torsiondrive/tests/.*
     - torsiondrive/_version.py
     - torsiondrive/tools/.*
