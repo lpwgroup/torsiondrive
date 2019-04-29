@@ -28,7 +28,7 @@ install:
   - python devtools/scripts/create_conda_env.py -n=test -p=$PYTHON_VER devtools/conda-envs/psi.yaml
 
     # Activate the test environment
-  - source activate test
+  - conda activate test
 
     # Build and install package
   - bash devtools/travis-ci/install-cctools.sh
@@ -36,6 +36,7 @@ install:
 
     # Print versions
   - python -c "import geometric; print(geometric.__version__)"
+  - python -c "import work_queue; print(work_queue.__version__)"
 
 script:
   - travis_wait 100 pytest -v --cov=torsiondrive torsiondrive/tests/
