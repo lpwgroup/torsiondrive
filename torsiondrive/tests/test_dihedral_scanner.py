@@ -11,6 +11,7 @@ from torsiondrive.priority_queue import PriorityQueue
 
 def test_torsiondrive_imported():
     """Simple test, will always pass so long as import statement worked"""
+    import torsiondrive
     assert "torsiondrive" in sys.modules
 
 def test_dihedral_scanner_setup():
