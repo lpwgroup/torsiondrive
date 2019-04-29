@@ -58,7 +58,7 @@ Extra calculations will be needed for the initial optimization, and grid points 
 Index
 -----
 
-** Getting Started **
+**Getting Started**
 
 * :doc:`install`
 * :doc:`usage`
@@ -72,7 +72,9 @@ Index
    usage.rst
 
 
-** Examples **
+**Examples**
+
+* :doc:`examples`
 
 .. toctree::
    :maxdepth: 1
@@ -81,9 +83,11 @@ Index
 
    examples.rst
 
-** Developer Documentation **
+**Developer Documentation**
 
 Contains in-depth developer documentation.
+
+* :doc:`api`
 
 .. toctree::
    :maxdepth: 1
