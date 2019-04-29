@@ -45,7 +45,7 @@ The total number of constrained optimizations is approximately
     2 \times N_{dim} \times N_{grid}
 
 
-where :math:`N_{dim}` is the number of dimensions. :math:`n_i` is the number of grid points of the :math:`i`th dimension.
+where :math:`N_{dim}` is the number of dimensions.
 The term :math:`N_{grid}` is the total number of grid points in the scan, which is the product of the number of grid points of each dimension.
 
 .. math::
