@@ -21,15 +21,16 @@ class DihedralScanRepeater(DihedralScanner):
     the requirements of torsiondrive-API"""
     def repeat_scan_process(self):
         """ Mimicing DihedralScanner.master function, but stops when new jobs needs to run """
-        self.push_initial_opt_tasks()
-        if len(self.opt_queue) == 0:
-            print("No tasks in opt_queue! Exiting..")
-            return
         # make sure we're in the rootpath
         os.chdir(self.rootpath)
         self.refined_grid_ids = set()
         self.next_jobs = defaultdict(list)
         self.current_finished_job_results = PriorityQueue()
+        # push the initial tasks
+        self.push_initial_opt_tasks()
+        if len(self.opt_queue) == 0:
+            print("No tasks in opt_queue! Exiting..")
+            return
         # start the iteration from beginning
         while True:
             # print current status
@@ -53,17 +54,20 @@ class DihedralScanRepeater(DihedralScanner):
             # compare the best results between current iteration and all previous iterations
             newly_updated_grid_m = []
             for grid_id, m in current_best_grid_m.items():
+                energy = m.qm_energies[0]
+                # update current global minimum
+                if self.global_minimum_energy is None or energy < self.global_minimum_energy:
+                    self.global_minimum_energy = energy
                 if grid_id not in self.grid_energies:
                     if self.verbose:
                         print("First energy for grid_id %s = %f" % (str(grid_id), m.qm_energies[0]))
-                    self.grid_energies[grid_id] = m.qm_energies[0]
+                    self.grid_energies[grid_id] = energy
                     self.grid_final_geometries[grid_id] = m.xyzs[0]
                     newly_updated_grid_m.append((grid_id, m))
                 elif m.qm_energies[0] < self.grid_energies[grid_id] - self.energy_decrease_thresh:
                     if self.verbose:
-                        print("Energy for grid_id %s decreased from %f to %f" % (str(grid_id), self.grid_energies[grid_id],
-                                                                                 m.qm_energies[0]))
-                    self.grid_energies[grid_id] = m.qm_energies[0]
+                        print(f"Energy for grid_id {grid_id} decreased from {self.grid_energies[grid_id]} to {energy}")
+                    self.grid_energies[grid_id] = energy
                     self.grid_final_geometries[grid_id] = m.xyzs[0]
                     newly_updated_grid_m.append((grid_id, m))
                     # we record the refined_grid_ids here to be printed as green tiles in draw_ramachandran_plot()
@@ -73,8 +77,10 @@ class DihedralScanRepeater(DihedralScanner):
                 # every neighbor grid point will get one new task
                 for neighbor_gid in self.grid_neighbors(grid_id):
                     task = m, grid_id, neighbor_gid
-                    # all jobs are pushed with the same priority for now, can be adjusted here
-                    self.opt_queue.push(task)
+                    # validate task before pushing
+                    if self.validate_task(task):
+                        # all jobs are pushed with the same priority for now, can be adjusted here
+                        self.opt_queue.push(task)
             # check if all jobs finished
             if len(self.opt_queue) == 0 and len(self.next_jobs) == 0:
                 print("All optimizations converged at lowest energy. Job Finished!")
@@ -137,21 +143,33 @@ def get_next_jobs(current_state, verbose=False):
     then reproduce the entire scan from the beginning, finish all cached ones, until a new job is not found in the cache.
     Return a list of new jobs that needs to be finished for the current iteration
 
-    Input:
+    Parameters
+    ----------
+    current_state: dict
+        An dictionary containing information of the scan state,
+        Required keys: 'dihedrals', 'grid_spacing', 'elements', 'init_coords', 'grid_status'
+        Optional keys: 'dihedral_ranges', 'energy_decrease_thresh', 'energy_upper_limit'
+
+    Returns
     -------
-    current_state: dict, e.g. {
+    next_jobs: dict
+        key is the target grid_id, value is a list of new_job. Each new_job is represented by its start_geo
+        * Note: the order of new_job should correspond to the finished job_info.
+
+    Examples
+    --------
+    current_state = {
             'dihedrals': [[0,1,2,3], [1,2,3,4]] ,
             'grid_spacing': [30, 30],
             'elements': ['H', 'C', 'O', ...]
             'init_coords': [geo1, geo2, ..]
             'grid_status': {(30, 60): [(start_geo, end_geo, end_energy), ..], ...}
         }
-
-    Output:
-    -------
-    next_jobs: dict(), key is the target grid_id, value is a list of new_job. Each new_job is represented by its start_geo
-        * Note: the order of new_job should correspond to the finished job_info.
-
+    >>> get_next_jobs(current_state)
+    {
+        (90, 60): [start_geo1, start_geo2, ..],
+        (90, 90): [start_geo3, start_geo4, ..],
+    }
     """
     dihedrals = current_state['dihedrals']
     grid_spacing = current_state['grid_spacing']
@@ -162,7 +180,11 @@ def get_next_jobs(current_state, verbose=False):
     init_coords_M.build_topology()
     # create a new scanner object with blank engine
     engine = EngineBlank()
-    scanner = DihedralScanRepeater(engine, dihedrals, grid_spacing, init_coords_M=init_coords_M, verbose=verbose)
+    dihedral_ranges = current_state.get('dihedral_ranges')
+    energy_decrease_thresh = current_state.get('energy_decrease_thresh')
+    energy_upper_limit = current_state.get('energy_upper_limit')
+    scanner = DihedralScanRepeater(engine, dihedrals, grid_spacing, init_coords_M=init_coords_M, dihedral_ranges=dihedral_ranges, \
+         energy_decrease_thresh=energy_decrease_thresh, energy_upper_limit=energy_upper_limit, verbose=verbose)
     # rebuild the task_cache for scanner
     scanner.rebuild_task_cache(current_state['grid_status'])
     # run the scanner until some calculation is not found in cache
@@ -274,32 +296,60 @@ def next_jobs_from_state(td_state, verbose=False):
 ### Utility functions for servers
 
 
-def create_initial_state(dihedrals, grid_spacing, elements, init_coords):
+def create_initial_state(dihedrals, grid_spacing, elements, init_coords, dihedral_ranges=None, energy_decrease_thresh=None, energy_upper_limit=None):
     """Create the initial input dictionary for torsiondrive API
 
     Parameters
     ----------
-    dihedrals : list of tuples
+    dihedrals : List of tuples
         A list of the dihedrals to scan over.
-    grid_spacing : list of int
+    grid_spacing : List of int
         The grid seperation for each dihedral angle
-    elements : list of strings
+    elements : List of strings
         Symbols for all elements in the molecule
-    init_coords : list of (N, 3) or (N*3) arrays
+    init_coords : List of (N, 3) or (N*3) arrays
         The initial coordinates in bohr
+    dihedral_ranges: (Optional) List of [low, high] pairs
+        consistent with launch.py, e.g. [[-120, 120], [-90, 150]]
+    energy_decrease_thresh: (Optional) Float
+        Threshold of an energy decrease to triggle activate new grid point. Default is 1e-5
+    energy_upper_limit: (Optional) Float
+        Upper limit of energy relative to current global minimum to spawn new optimization tasks.
 
     Returns
     -------
     dict
         A representation of the torsiondrive state as JSON
+
+    Examples
+    --------
+    dihedrals = [[0,1,2,3], [1,2,3,4]]
+    grid_spacing = [30, 30]
+    elements = ["H", "C", "C", "O", "H"]
+    init_coords = [[0.1, 0.2, 0.1], [1.1, 1.2, 1.1], [2.4, 2.2, 2.4], [3.1, 3.2, 3.1], [4.1, 3.8, 4.2]]
+    dihedral_ranges = [[-120, 120], [-90, 150]]
+    energy_decrease_thresh = 0.00001
+    energy_upper_limit = 0.05
+
+    Notes
+    -----
+    The extra_constraints feature is implemented in the server. See tests/test_stack_api.py for example.
+
     """
-    return {
+    initial_state = {
         'dihedrals': dihedrals,
         'grid_spacing': grid_spacing,
         'elements': elements,
         'init_coords': init_coords,
-        'grid_status': {}
+        'grid_status': {},
     }
+    if dihedral_ranges is not None:
+        initial_state['dihedral_ranges'] = dihedral_ranges
+    if energy_decrease_thresh is not None:
+        initial_state['energy_decrease_thresh'] = energy_decrease_thresh
+    if energy_upper_limit is not None:
+        initial_state['energy_upper_limit'] = energy_upper_limit
+    return initial_state
 
 
 def collect_lowest_energies(td_state):

@@ -115,3 +115,6 @@ examples/propanol-2d/
 # output files
 *.out
 *.dat
+
+# DS_Store
+**/.DS_Store

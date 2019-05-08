@@ -7,7 +7,9 @@ import os, sys, collections, pytest
 import numpy as np
 import geometric
 from geometric.nifty import ang2bohr
+
 from torsiondrive import td_api
+from torsiondrive.extra_constraints import check_conflict_constraints
 
 try:
     import qcengine
@@ -19,12 +21,18 @@ except ImportError:
 class SimpleServer:
     """ A simple server that interfaces with torsiondrive and geometric to do the dihedral scanning work flow """
 
-    def __init__(self, xyzfilename, dihedrals, grid_spacing):
+    def __init__(self, xyzfilename, dihedrals, grid_spacing, dihedral_ranges=None, energy_decrease_thresh=None, energy_upper_limit=None, extra_constraints=None):
         self.M = geometric.molecule.Molecule(xyzfilename)
         self.dihedrals = dihedrals
         self.grid_spacing = grid_spacing
         self.elements = self.M.elem
         self.init_coords = [(self.M.xyzs[0] * ang2bohr).ravel().tolist()]
+        self.dihedral_ranges = dihedral_ranges
+        self.energy_decrease_thresh = energy_decrease_thresh
+        self.energy_upper_limit = energy_upper_limit
+        if extra_constraints is not None:
+            check_conflict_constraints(extra_constraints, dihedrals)
+        self.extra_constraints = extra_constraints
 
     def run_torsiondrive_scan(self):
         """
@@ -42,7 +50,11 @@ class SimpleServer:
             dihedrals=self.dihedrals,
             grid_spacing=self.grid_spacing,
             elements=self.elements,
-            init_coords=self.init_coords)
+            init_coords=self.init_coords,
+            dihedral_ranges=self.dihedral_ranges,
+            energy_decrease_thresh=self.energy_decrease_thresh,
+            energy_upper_limit=self.energy_upper_limit,
+        )
 
         while True:
             # step 2
@@ -81,6 +93,11 @@ class SimpleServer:
         constraints_dict = {
             'set': [{'type': 'dihedral', 'indices': list(d), 'value': v} for d, v in zip(self.dihedrals, dihedral_values)]
         }
+        # merge the extra constraints in
+        if self.extra_constraints is not None:
+            for key, v_list in self.extra_constraints.items():
+                constraints_dict.setdefault(key, [])
+                constraints_dict[key] += v_list
         qc_schema_input = {
             "schema_name": "qcschema_input",
             "schema_version": 1,
@@ -128,6 +145,36 @@ def test_stack_simpleserver():
     result_energies = [lowest_energies[grid_id] for grid_id in sorted(lowest_energies.keys())]
     assert np.allclose(
         result_energies, [-148.76511761, -148.76018225, -148.7505629, -148.76018225, -148.76511761, -148.76501337],
+        atol=1e-4)
+
+    os.chdir(orig_path)
+
+
+@pytest.mark.skipif("qcengine" not in sys.modules, reason='qcengine not found')
+@pytest.mark.skipif("psi4" not in sys.modules, reason='psi4 not found')
+def test_stack_simpleserver_optional():
+    """
+    Test the stack of (server <=> td_api) -> geomeTRIC -> qcengine -> Psi4 with optional arguments
+    """
+    orig_path = os.getcwd()
+
+    this_file_folder = os.path.dirname(os.path.realpath(__file__))
+    test_folder = os.path.join(this_file_folder, 'files', 'hooh-simpleserver')
+    os.chdir(test_folder)
+
+    extra_constraints = {
+        'freeze': [{
+            "type": "distance",
+            "indices": [0, 1],
+        }]
+    }
+    simpleServer = SimpleServer('start.xyz', dihedrals=[[0, 1, 2, 3]], grid_spacing=[30], dihedral_ranges=[[-150, -60]], extra_constraints=extra_constraints)
+    lowest_energies = simpleServer.run_torsiondrive_scan()
+
+    result_energies = [lowest_energies[grid_id] for grid_id in sorted(lowest_energies.keys())]
+    print(result_energies)
+    assert np.allclose(
+        result_energies, [-148.76400359, -148.76395751, -148.76286594, -148.75885779],
         atol=1e-4)
 
     os.chdir(orig_path)

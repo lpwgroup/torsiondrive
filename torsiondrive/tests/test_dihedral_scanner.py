@@ -11,6 +11,7 @@ from torsiondrive.priority_queue import PriorityQueue
 
 def test_torsiondrive_imported():
     """Simple test, will always pass so long as import statement worked"""
+    import torsiondrive
     assert "torsiondrive" in sys.modules
 
 def test_dihedral_scanner_setup():
@@ -73,4 +74,29 @@ def test_dihedral_scanner_range_masks():
     task1 = (m, (-120, 120), (-120, 150))
     assert scanner.validate_task(task1) == True
     task2 = (m, (-120, 60), (-120, 90))
+    assert scanner.validate_task(task2) == False
+
+def test_dihedral_scanner_energy_upper_limit_filter():
+    """
+    Test dihedral scanner energy_upper_limit as task filters
+    """
+    # setup a scanner
+    m = Molecule()
+    m.elem = ['H'] * 5
+    m.xyzs = [np.array([[0, 0, 0], [0, 1, 0], [0, 0, 1], [1, 1, 1], [1, 0, 0]], dtype=float)*0.5]
+    m.build_topology()
+    engine = EngineBlank()
+    dihedrals = [[0,1,2,3], [1,2,3,4]]
+    # two ranges are tested, one is normal, one is "split" crossing boundaries
+    dihedral_ranges = [[-120, 120], [150, 240]]
+    scanner = DihedralScanner(engine, dihedrals=dihedrals, grid_spacing=[30, 30], init_coords_M=m, dihedral_ranges=dihedral_ranges, energy_upper_limit=0.001)
+    # check dihedral masks
+    assert scanner.energy_upper_limit == 0.001
+    # test validate_task() function
+    scanner.global_minimum_energy = 0.0
+    m.qm_energies = [0.0]
+    task1 = (m, (-120, 120), (-120, 150))
+    assert scanner.validate_task(task1) == True
+    m.qm_energies = [0.0015]
+    task2 = (m, (-120, 120), (-120, 150))
     assert scanner.validate_task(task2) == False

@@ -5,14 +5,14 @@ channels:
   - psi4
 dependencies:
     # Psi test depends
-  - psi4=1.3
-  - qcengine=0.6.1
+  - psi4>=1.3.1
+  - qcengine>=0.6.4
 
     # geomeTRIC
-  - geomeTRIC
+  - geomeTRIC>=0.9.5
 
     # for building cctools.workqueue
-  - swig
+  - swig=3
 
     # Testing
   - pytest
