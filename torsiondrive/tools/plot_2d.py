@@ -4,53 +4,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 
-def load_data_from_scan_xyz(filename):
-    """ Read the dihedral information and energy from scan.xyz """
-    with open(filename) as f:
-        lines = f.readlines()
-    n_atoms = int(lines[0])
-    comment_lines = lines[1::n_atoms+2]
-    grid_data = dict()
-    for line in comment_lines:
-        ls = line.strip().split()
-        assert ls[0] == 'Dihedral' and ls[-2] == 'Energy', line
-        grid_energy = float(ls[-1])
-        grid_coord = []
-        for i in range(1, len(ls) - 2):
-            c = int(ls[i].replace('(', '').replace(',','').replace(')',''))
-            grid_coord.append(c)
-        grid_data[tuple(grid_coord)] = grid_energy
-    return grid_data
-
-def find_grid_spacing(grid_id_list):
-    """ Find the largest possible grid spacing for one dimension grid id list """
-    if not grid_id_list: return None
-    assert all(-180 < grid_id <= 180 for grid_id in grid_id_list), f"grid id out of range (-180, 180]: {grid_id_list}"
-    if len(grid_id_list) == 1:
-        # find the largest possible grid spacing if only one data is available this direction
-        # The answer is the largest divisor of
-        # a: grid range 360
-        # b: distance from grid_id to -180
-        grid_id = grid_id_list[0]
-        res = largest_common_divisor(360, grid_id+180)
-    else:
-        n = len(grid_id_list)
-        grid_id_list = sorted(grid_id_list)
-        res = 360
-        for i in range(n):
-            gid = grid_id_list[i]
-            spacing = largest_common_divisor(360, gid+180)
-            res = largest_common_divisor(res, spacing)
-            if i < n-1:
-                step = grid_id_list[i+1] - gid
-                res = largest_common_divisor(res, step)
-    return res
-
-def largest_common_divisor(a, b):
-    """ Get the largest common divisor of a and b """
-    while b:
-        a, b = b, a%b
-    return a
+from torsiondrive.tools import read_scan_xyz, find_grid_spacing
 
 def format_2d_grid_data(grid_data, verbose=False):
     """ Take a grid_data dictionary, figure out the grid spacing of each dimension,
@@ -118,16 +72,16 @@ def plot_grid_contour(grid_data, pdf_filename, method='imshow', vmax=None):
 
 def main():
     import argparse
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("infile", help='scan.xyz file from torsionscan launch')
     parser.add_argument("-m", "--method", choices=['contourf', 'imshow'], default='imshow', help='method to color background')
     parser.add_argument("--vmax", type=float, help='max value of heat map')
+    parser.add_argument("-o", "--output", default="torsiondrive_2D.pdf", help='Output pdf filename for plot')
     args = parser.parse_args()
 
-    grid_data = load_data_from_scan_xyz(args.infile)
-    pdf_filename = "contour.pdf"
-    plot_grid_contour(grid_data, pdf_filename, method=args.method, vmax=args.vmax)
-    print("Plot saved as contour.pdf")
+    grid_data = read_scan_xyz(args.infile)
+    plot_grid_contour(grid_data, args.output, method=args.method, vmax=args.vmax)
+    print(f"Plot saved as {args.output}")
 
 if __name__ == '__main__':
     main()
