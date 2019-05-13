@@ -118,3 +118,7 @@ examples/propanol-2d/
 
 # DS_Store
 **/.DS_Store
+
+# notebook example files
+notebooks/*.xyz
+notebooks/*.pdf

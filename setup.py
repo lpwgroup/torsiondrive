@@ -18,6 +18,8 @@ setup(
     entry_points={'console_scripts': [
         'torsiondrive-launch = torsiondrive.launch:main',
         'torsiondrive-api = torsiondrive.td_api:main',
+        'torsiondrive-plot1d = torsiondrive.tools.plot_1d:main',
+        'torsiondrive-plot2d = torsiondrive.tools.plot_2d:main',
     ]},
     url='https://github.com/lpwgroup/torsiondrive',
     install_requires=[

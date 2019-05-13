@@ -15,7 +15,7 @@ geomeTRIC + Psi4
  - Location: torsiondrive_examples/examples/hooh-1d/psi4/run_local/geomeTRIC/
  - Run command: ``torsiondrive-launch input.dat dihedrals.txt -g 15 -e psi4 -v``
  - Output log: scan.log
- - Energy plot can be generated using ``torsiondrive/tools/plot_1d.py``
+ - Energy plot can be generated using ``torsiondrive-plot1d``
     .. image:: media/1d_plot.jpeg
         :width: 500px
         :align: center
@@ -38,7 +38,7 @@ geomeTRIC + Psi4 distributed
       2     7     11    12
 
  - Output log: scan.log
- - Energy heatmap can be generated using ``torsiondrive/tools/plot_2d_contour.py``
+ - Energy heatmap can be generated using ``torsiondrive-plot2d``
     .. image:: media/2d_heatmap.jpeg
         :width: 800px
         :align: center
@@ -56,7 +56,7 @@ range limited scan
       2     7     11    12        150             330
 
  - Output log: scan.log
- - Energy heatmap can be generated using ``torsiondrive/tools/plot_2d_contour.py``
+ - Energy heatmap can be generated using ``torsiondrive-plot2d``
     .. image:: media/2d_heatmap_limited.jpeg
         :width: 800px
         :align: center
