@@ -9,7 +9,7 @@ dependencies:
   - qcengine>=0.6.4
 
     # geomeTRIC
-  - geomeTRIC>=0.9.5
+  - geomeTRIC>=0.9.7
 
     # for building cctools.workqueue
   - swig=3

@@ -24,6 +24,6 @@ setup(
     url='https://github.com/lpwgroup/torsiondrive',
     install_requires=[
         'numpy>=1.11',
-        'geometric>=0.9.5'
+        'geometric>=0.9.7'
     ]
 )

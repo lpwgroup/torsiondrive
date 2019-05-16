@@ -92,6 +92,8 @@ class DihedralScanner:
         self.grid_energies = dict()
         # dictionary that stores the geometries corresponding to lowest energy for each grid point
         self.grid_final_geometries = dict()
+        # dictionary that stores the gradients to lowest energy for each grid point (optional)
+        self.grid_final_gradients = dict()
         # save current path as the rootpath
         self.rootpath = self.engine.rootpath = os.getcwd()
         # path for temporary optimization files to be saved
@@ -284,20 +286,23 @@ class DihedralScanner:
                 # update current global minimum
                 if self.global_minimum_energy is None or energy < self.global_minimum_energy:
                     self.global_minimum_energy = energy
+                updating_grid_point = False
                 if grid_id not in self.grid_energies:
                     if self.verbose:
                         print(f"First energy for grid_id {grid_id} = {energy}")
-                    self.grid_energies[grid_id] = energy
-                    self.grid_final_geometries[grid_id] = m.xyzs[0]
-                    newly_updated_grid_m.append((grid_id, m))
+                    updating_grid_point = True
                 elif energy < self.grid_energies[grid_id] - self.energy_decrease_thresh:
                     if self.verbose:
                         print(f"Energy for grid_id {grid_id} decreased from {self.grid_energies[grid_id]} to {energy}")
-                    self.grid_energies[grid_id] = energy
-                    self.grid_final_geometries[grid_id] = m.xyzs[0]
-                    newly_updated_grid_m.append((grid_id, m))
+                    updating_grid_point = True
                     # we record the refined_grid_ids here to be printed as green tiles in draw_ramachandran_plot()
                     self.refined_grid_ids.add(grid_id)
+                if updating_grid_point:
+                    self.grid_energies[grid_id] = energy
+                    self.grid_final_geometries[grid_id] = m.xyzs[0]
+                    if hasattr(m, 'qm_grads'):
+                        self.grid_final_gradients[grid_id] = m.qm_grads[0]
+                    newly_updated_grid_m.append((grid_id, m))
             # create new tasks for each newly_updated_grid_m
             for grid_id, m in newly_updated_grid_m:
                 # every neighbor grid point will get one new task
@@ -366,12 +371,15 @@ class DihedralScanner:
         if self.verbose:
             print(f"{len(self.init_coords_M)} initial tasks pushed to opt_queue")
 
-    def save_task_cache(self, job_path, m_init, m_final, final_energy):
+    def save_task_cache(self, job_path, m_init, m_final):
         """
         Save a file containing the finished job information to a pickle file on disk.
         The format should be consistent with self.restore_task_cache()
         """
+        final_energy = m_final.qm_energies[0]
         task_result = {'initial_geo': m_init.xyzs[0], 'final_geo': m_final.xyzs[0], 'final_energy': final_energy}
+        if hasattr(m_final, 'qm_grads'):
+            task_result['final_gradient'] = m_final.qm_grads[0]
         with open(os.path.join(self.rootpath, job_path, self.task_result_fname), 'wb') as pickleout:
             pickle.dump(task_result, pickleout)
 
@@ -383,7 +391,9 @@ class DihedralScanner:
         If successful, self.tmp_folder_dict will be initialized, same as self.create_tmp_folder(),
         and self.task_cache will be populated, with task caches, defined in this way:
 
-        self.task_cache = {(30,-60): {geo_key: (final_geo, final_energy)}}
+        self.task_cache = {(30,-60): {geo_key: (final_geo, final_energy, final_gradient, job_folder)}}
+
+        final_gradient will be None if it's not available.
         """
         if self.verbose:
             print("Restoring from %s" % self.tmp_folder_name)
@@ -417,10 +427,10 @@ class DihedralScanner:
                     try:
                         task_result = pickle.load(open(result_fname, 'rb'))
                         task_geo_key = get_geo_key(task_result['initial_geo'])
-                        self.task_cache[grid_id][task_geo_key] = (task_result['final_geo'], task_result['final_energy'], job_folder)
+                        self.task_cache[grid_id][task_geo_key] = (task_result['final_geo'], task_result['final_energy'], task_result.get('final_gradient', None), job_folder)
                         n_cache += 1
                     except Exception as e:
-                        print("Error while loading result_fname:" + str(e))
+                        print(f"Error while loading {result_fname}:" + str(e))
                         pass
         if self.verbose:
             print("Successfully loaded %s cached results" % n_cache)
@@ -470,11 +480,13 @@ class DihedralScanner:
             # check if this job already exists
             m_geo_key = get_geo_key(m.xyzs[0])
             if m_geo_key in self.task_cache[to_grid_id]:
-                final_geo, final_energy, job_folder = self.task_cache[to_grid_id][m_geo_key]
+                final_geo, final_energy, final_gradient, job_folder = self.task_cache[to_grid_id][m_geo_key]
                 result_m = Molecule()
                 result_m.elem = list(m.elem)
                 result_m.xyzs = [final_geo]
                 result_m.qm_energies = [final_energy]
+                if final_gradient is not None:
+                    result_m.qm_grads = [final_gradient]
                 result_m.build_topology()
                 grid_id = self.get_dihedral_id(result_m, check_grid_id=to_grid_id)
                 if grid_id is None:
@@ -541,7 +553,7 @@ class DihedralScanner:
             # call the engine to parse output file and return final geometry/energy in a new molecule
             m = self.engine.load_task_result_m(job_path)
             # save the parsed task result to disk
-            self.save_task_cache(job_path, m_init, m, m.qm_energies[0])
+            self.save_task_cache(job_path, m_init, m)
             # we will check here if the optimized structure has the desired dihedral ids
             grid_id = self.get_dihedral_id(m, check_grid_id=to_grid_id)
             if grid_id is None:
@@ -555,10 +567,17 @@ class DihedralScanner:
         m = Molecule()
         m.elem = list(self.engine.M.elem)
         m.qm_energies, m.xyzs, m.comms = [], [], []
+        # optionally writing qm gradients into qdata.txt if avilable
+        writing_gradients = False
+        if len(self.grid_final_gradients) == len(self.grid_final_geometries):
+            m.qm_grads = []
+            writing_gradients = True
         # only print grid with energies
         for gid in sorted(self.grid_energies.keys()):
             m.qm_energies.append(self.grid_energies[gid])
             m.xyzs.append(self.grid_final_geometries[gid])
+            if writing_gradients:
+                m.qm_grads.append(self.grid_final_gradients[gid])
             m.comms.append("Dihedral %s Energy %.9f" % (str(gid), self.grid_energies[gid]))
         m.write('qdata.txt')
         print("Final scan energies are written to qdata.txt")
