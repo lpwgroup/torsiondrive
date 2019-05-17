@@ -580,7 +580,7 @@ class DihedralScanner:
                 m.qm_grads.append(self.grid_final_gradients[gid])
             m.comms.append("Dihedral %s Energy %.9f" % (str(gid), self.grid_energies[gid]))
         m.write('qdata.txt')
-        print("Final scan energies are written to qdata.txt")
+        print(f"Final scan energies{' and gradients' if writing_gradients else ''} are written to qdata.txt")
         m.write('scan.xyz')
         print("Final scan energies are written to scan.xyz")
 
