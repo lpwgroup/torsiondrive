@@ -259,7 +259,7 @@ class EnginePsi4(QMEngine):
         # step 2
         self.write_input('input.dat')
         # step 3
-        cmd = 'geometric-optimize --prefix tdrive --qccnv --reset --epsilon 0.0 --enforce 0.1 --qdata --psi4 input.dat constraints.txt 2>&1 > optimize.log'
+        cmd = 'geometric-optimize --prefix tdrive --qccnv --reset --epsilon 0.0 --enforce 0.1 --qdata --psi4 input.dat constraints.txt'
         self.run(cmd, input_files=['input.dat', 'constraints.txt'], output_files=['tdrive.log', 'tdrive.xyz', 'qdata.txt'])
 
     def load_native_output(self, filename='output.dat'):
@@ -400,7 +400,7 @@ class EngineQChem(QMEngine):
         # step 2
         self.write_input('qc.in')
         # step 3
-        cmd = 'geometric-optimize --prefix tdrive --qccnv --reset --epsilon 0.0 --enforce 0.1 --qdata --qchem qc.in constraints.txt 2>&1 > optimize.log'
+        cmd = 'geometric-optimize --prefix tdrive --qccnv --reset --epsilon 0.0 --enforce 0.1 --qdata --qchem qc.in constraints.txt'
         self.run(cmd, input_files=['qc.in', 'constraints.txt'], output_files=['tdrive.log', 'tdrive.xyz', 'qdata.txt'])
 
     def load_native_output(self, filename='qc.out'):
