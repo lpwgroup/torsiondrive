@@ -58,20 +58,23 @@ class DihedralScanRepeater(DihedralScanner):
                 # update current global minimum
                 if self.global_minimum_energy is None or energy < self.global_minimum_energy:
                     self.global_minimum_energy = energy
+                updating_grid_point = False
                 if grid_id not in self.grid_energies:
                     if self.verbose:
-                        print("First energy for grid_id %s = %f" % (str(grid_id), m.qm_energies[0]))
-                    self.grid_energies[grid_id] = energy
-                    self.grid_final_geometries[grid_id] = m.xyzs[0]
-                    newly_updated_grid_m.append((grid_id, m))
-                elif m.qm_energies[0] < self.grid_energies[grid_id] - self.energy_decrease_thresh:
+                        print(f"First energy for grid_id {grid_id} = {energy}")
+                    updating_grid_point = True
+                elif energy < self.grid_energies[grid_id] - self.energy_decrease_thresh:
                     if self.verbose:
                         print(f"Energy for grid_id {grid_id} decreased from {self.grid_energies[grid_id]} to {energy}")
-                    self.grid_energies[grid_id] = energy
-                    self.grid_final_geometries[grid_id] = m.xyzs[0]
-                    newly_updated_grid_m.append((grid_id, m))
+                    updating_grid_point = True
                     # we record the refined_grid_ids here to be printed as green tiles in draw_ramachandran_plot()
                     self.refined_grid_ids.add(grid_id)
+                if updating_grid_point:
+                    self.grid_energies[grid_id] = energy
+                    self.grid_final_geometries[grid_id] = m.xyzs[0]
+                    if hasattr(m, 'qm_grads'):
+                        self.grid_final_gradients[grid_id] = m.qm_grads[0]
+                    newly_updated_grid_m.append((grid_id, m))
             # create new tasks for each newly_updated_grid_m
             for grid_id, m in newly_updated_grid_m:
                 # every neighbor grid point will get one new task
@@ -91,15 +94,15 @@ class DihedralScanRepeater(DihedralScanner):
         Take a dictionary of finished optimizations, rebuild task_cache dictionary
         This function mimics the DihedralScanner.restore_task_cache()
 
-        Parameters:
-        ------------
+        Parameters
+        -----------
         grid_status = dict(), key is the grid_id, value is a list of job_info. Each job_info is a tuple of (start_geo, end_geo, end_energy).
             * Note: The order of the job_info is important when reproducing the same scan procedure.
 
-        Returns: None
-        ------------
-        Upon finish, the new folder 'opt_tmp' will be created, with many empty folders corrsponding to the finished jobs.
-        self.task_cache will be populated with correct information for repreducing the entire scan process.
+        Notes
+        -----
+        Upon finish, self.task_cache will be populated with correct information for repreducing the entire scan process, i.e.
+        self.task_cache = {(30,-60): {geo_key: (final_geo, final_energy, final_gradient, job_folder)}}
         """
         for grid_id, job_info_list in grid_status.items():
             tname = 'gid_' + '_'.join('%+04d' % gid for gid in grid_id)
@@ -108,7 +111,7 @@ class DihedralScanRepeater(DihedralScanner):
                 job_path = os.path.join(tmp_folder_path, str(i_job + 1))
                 (start_geo, end_geo, end_energy) = job_info
                 job_geo_key = get_geo_key(start_geo)
-                self.task_cache[grid_id][job_geo_key] = (end_geo, end_energy, job_path)
+                self.task_cache[grid_id][job_geo_key] = (end_geo, end_energy, None, job_path)
 
     def launch_opt_jobs(self):
         """
@@ -120,11 +123,13 @@ class DihedralScanRepeater(DihedralScanner):
             # check if this job already exists
             m_geo_key = get_geo_key(m.xyzs[0])
             if m_geo_key in self.task_cache[to_grid_id]:
-                final_geo, final_energy, job_folder = self.task_cache[to_grid_id][m_geo_key]
+                final_geo, final_energy, final_gradient, job_folder = self.task_cache[to_grid_id][m_geo_key]
                 result_m = Molecule()
                 result_m.elem = list(m.elem)
                 result_m.xyzs = [final_geo]
                 result_m.qm_energies = [final_energy]
+                if final_gradient is not None:
+                    result_m.qm_grads = [final_gradient]
                 result_m.build_topology()
                 grid_id = self.get_dihedral_id(result_m, check_grid_id=to_grid_id)
                 if grid_id is None:
