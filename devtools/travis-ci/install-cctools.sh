@@ -65,7 +65,7 @@ fi
 PYTHON_VERSION=`python -c 'import sys; print(sys.version_info[0])'`
 if [ "$PYTHON_VERSION" -eq "3" ]
 then
-    ./configure --prefix $prefix/$cctools --with-python3-path $pypath --with-swig-path $swgpath --with-perl-path no --with-globus-path no
+    ./configure --prefix $prefix/$cctools --with-python3-path $pypath --with-python-path no --with-swig-path $swgpath --with-perl-path no --with-globus-path no
 else
     ./configure --prefix $prefix/$cctools --with-python-path $pypath --with-swig-path $swgpath
 fi
