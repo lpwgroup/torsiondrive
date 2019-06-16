@@ -12,7 +12,7 @@ dependencies:
   - geomeTRIC>=0.9.7
 
     # for building cctools.workqueue
-  - swig=3
+  - swig
 
     # Testing
   - pytest

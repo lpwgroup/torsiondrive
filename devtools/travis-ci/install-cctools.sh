@@ -2,7 +2,7 @@
 
 # Download latest version from website.
 echo "Downloading source."
-version="7.0.10"
+version="7.0.14"
 cctools="cctools-$version"
 rm -rf cctools*
 wget https://github.com/lpwgroup/cctools/archive/v${version}.tar.gz
