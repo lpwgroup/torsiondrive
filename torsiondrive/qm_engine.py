@@ -144,6 +144,39 @@ class EngineBlank(QMEngine):
     def load_native_output(self):
         return Molecule()
 
+class EngineOpenMM(QMEngine):
+    def load_input(self, input_file):
+        """Input file is the name of the pdb file with the coords in we also require that the xml has the same name"""
+
+        self.M = Molecule(input_file)
+        xml_name = input_file.split(".")[0] + '.xml'
+        self.xml = open(xml_name, 'r').read()
+        self.pdb = open(input_file, 'r').read()
+
+    def write_input(self):
+        """write the pdb and xml file for geometric assuming the rename is UNK"""
+        with open('tdrive.pdb', 'w+') as pdb:
+            pdb.write(self.pdb)
+        with open('tdrive.xml', 'w+') as out:
+            for line in self.xml:
+                out.write(line)
+
+    def optimize_geomeTRIC(self):
+        """ run the constrained optimization using geomeTRIC package, in 3 steps:
+        1. Write a constraints.txt file.
+        2. Write a gradient job input file.
+        3. Run the job
+        """
+        # sep 1
+        self.write_constraints_txt()
+        # step 2
+        self.write_input()
+        # set3
+        self.run('geometric-optimize --prefix tdrive --qccnv --reset --epsilon 0.0 --enforce 0.1 --qdata --pdb '
+                 'tdrive.pdb --openmm tdrive.xml constraints.txt',
+                 input_files=['tdrive.xml', 'tdrive.pdb', 'constraints.txt'],
+                 output_files=['tdrive.log', 'tdrive.xyz', 'qdata.txt'])
+
 class EnginePsi4(QMEngine):
     def load_input(self, input_file):
         """ Load a Psi4 input file as a Molecule object into self.M
