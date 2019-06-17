@@ -1,0 +1,4 @@
+# dihedral definition by atom indices starting from 0
+#zero_based_numbering
+# i     j     k     l
+  0     1     2     3
