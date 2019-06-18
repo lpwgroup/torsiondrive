@@ -162,8 +162,8 @@ class EngineOpenMM(QMEngine):
         """write the pdb and xml file for geometric assuming the rename is UNK"""
 
         self.m_pdb.xyzs[0] = self.M.xyzs[0]
-        self.m_pdb.write('tdrive.pdb')
-        with open('tdrive.xml', 'w') as out:
+        self.m_pdb.write('input.pdb')
+        with open('input.xml', 'w') as out:
             for line in self.xml:
                 out.write(line)
 
@@ -179,8 +179,8 @@ class EngineOpenMM(QMEngine):
         self.write_input()
         # set3
         self.run('geometric-optimize --prefix tdrive --qccnv --reset --epsilon 0.0 --enforce 0.1 --qdata --pdb '
-                 'tdrive.pdb --openmm tdrive.xml constraints.txt',
-                 input_files=['tdrive.xml', 'tdrive.pdb', 'constraints.txt'],
+                 'input.pdb --openmm input.xml constraints.txt',
+                 input_files=['input.xml', 'input.pdb', 'constraints.txt'],
                  output_files=['tdrive.log', 'tdrive.xyz', 'qdata.txt'])
 
 class EnginePsi4(QMEngine):
