@@ -1,6 +1,7 @@
 import os
 import subprocess
 import numpy as np
+import copy
 from geometric.molecule import Molecule
 from torsiondrive.extra_constraints import build_geometric_constraint_string, build_terachem_constraint_string
 
@@ -148,16 +149,21 @@ class EngineOpenMM(QMEngine):
     def load_input(self, input_file):
         """Input file is the name of the pdb file with the coords in we also require that the xml has the same name"""
 
-        self.M = Molecule(input_file)
-        xml_name = input_file.split(".")[0] + '.xml'
-        self.xml = open(xml_name, 'r').read()
-        self.pdb = open(input_file, 'r').read()
+        self.m_pdb = Molecule(input_file)[0]
+        self.M = copy.deepcopy(self.m_pdb)
+
+        xml_name = os.path.splitext(input_file)[0] + '.xml'
+        # Check the xml file is present
+        assert os.path.exists(xml_name) is True, "OpenMM requires a pdb and xml file, ensure you have both in the current folder with the same prefix"
+        with open(xml_name) as f:
+            self.xml = f.read()
 
     def write_input(self):
         """write the pdb and xml file for geometric assuming the rename is UNK"""
-        with open('tdrive.pdb', 'w+') as pdb:
-            pdb.write(self.pdb)
-        with open('tdrive.xml', 'w+') as out:
+
+        self.m_pdb.xyzs[0] = self.M.xyzs[0]
+        self.m_pdb.write('tdrive.pdb')
+        with open('tdrive.xml', 'w') as out:
             for line in self.xml:
                 out.write(line)
 

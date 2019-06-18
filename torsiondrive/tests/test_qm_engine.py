@@ -98,7 +98,7 @@ gradient('mp2')
     except subprocess.CalledProcessError:
         pass
 
-def test_engine_Openmm_geometric(tmpdir):
+def test_engine_OpenMM_geometric(tmpdir):
     """
     Testing EngineOpenMM by geomeTRIC
     """
@@ -163,6 +163,27 @@ CONECT    4    2
         assert pytest.approx(0.0205234, 0.00001) == m.qm_energies[0]
     except subprocess.CalledProcessError:
         pass
+
+def test_engine_OpenMM_xml_missing(tmpdir):
+    """
+    Testing running OpenMM with no xml, expect AssertionError
+    """
+    tmpdir.chdir()
+    with open('tdrive.pdb', 'w+') as pdb:
+        pdb.write("""REMARK   1 CREATED WITH GEOMETRIC 2019-06-14
+HETATM    1  O00 UNK     1       1.000   1.000   0.000  0.00  0.00           O
+HETATM    2  O01 UNK     1      -0.453   1.000   0.000  0.00  0.00           O  
+HETATM    3  H02 UNK     1       1.111   1.000  -0.970  0.00  0.00           H  
+HETATM    4  H03 UNK     1      -0.564   0.999   0.970  0.00  0.00           H  
+TER       5      UNK     1
+CONECT    1    2    3
+CONECT    2    1    4
+CONECT    3    1
+CONECT    4    2
+""")
+    with pytest.raises(AssertionError):
+        engine = EngineOpenMM(input_file='tdrive.pdb')
+
 
 def test_engine_qchem_native(tmpdir):
     """

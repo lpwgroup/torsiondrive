@@ -111,6 +111,9 @@ def create_engine(enginename, inputfile=None, work_queue_port=None, native_opt=F
         work_queue = WorkQueue(work_queue_port)
     else:
         work_queue = None
+    # Check the engine, if OpenMM we can not use a native_opt
+    if enginename == 'openmm':
+        assert native_opt is False, "OpenMM engine does not support native optimizer"
     engine = engine_dict[enginename](inputfile, work_queue, native_opt=native_opt, extra_constraints=extra_constraints)
     return engine
 

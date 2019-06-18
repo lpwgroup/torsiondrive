@@ -3,7 +3,7 @@ Unit and regression test for the torsiondrive.launch module
 """
 
 import pytest
-from torsiondrive.launch import load_dihedralfile
+from torsiondrive.launch import load_dihedralfile, create_engine
 
 def test_load_dihedralfile_basic(tmpdir):
     tmpdir.chdir()
@@ -194,3 +194,10 @@ def test_load_dihedralfile_limited_ranges(tmpdir):
         fp.write(dihedral_str)
     with pytest.raises(AssertionError, match='range'):
         dihedral_idxs, dihedral_ranges = load_dihedralfile(fn)
+
+def test_create_engine(tmpdir):
+    """Test making an OpenMM engine with native optimiser, expect AssertionError"""
+
+    with pytest.raises(AssertionError):
+        engine = create_engine('openmm', native_opt=True)
+
