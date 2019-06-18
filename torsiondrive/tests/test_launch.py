@@ -196,7 +196,7 @@ def test_load_dihedralfile_limited_ranges(tmpdir):
         dihedral_idxs, dihedral_ranges = load_dihedralfile(fn)
 
 def test_create_engine(tmpdir):
-    """Test making an OpenMM engine with native optimiser, expect AssertionError"""
+    """Test making an OpenMM engine with native optimizer, expect AssertionError"""
 
     with pytest.raises(AssertionError):
         engine = create_engine('openmm', native_opt=True)

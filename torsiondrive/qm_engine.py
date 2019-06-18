@@ -156,16 +156,15 @@ class EngineOpenMM(QMEngine):
         # Check the xml file is present
         assert os.path.exists(xml_name) is True, "OpenMM requires a pdb and xml file, ensure you have both in the current folder with the same prefix"
         with open(xml_name) as f:
-            self.xml = f.read()
+            self.xml_content = f.read()
 
     def write_input(self):
-        """write the pdb and xml file for geometric assuming the rename is UNK"""
+        """Write a pdb file with the latest geometry and the input xml file"""
 
         self.m_pdb.xyzs[0] = self.M.xyzs[0]
         self.m_pdb.write('tdrive.pdb')
         with open('tdrive.xml', 'w') as out:
-            for line in self.xml:
-                out.write(line)
+                out.write(self.xml_content)
 
     def optimize_geomeTRIC(self):
         """ run the constrained optimization using geomeTRIC package, in 3 steps:
