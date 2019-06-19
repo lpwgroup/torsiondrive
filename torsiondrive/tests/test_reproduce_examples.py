@@ -18,7 +18,7 @@ def example_path(tmpdir_factory):
     # tmpdir_factory is a pytest built-in fixture that has "session" scope
     tmpdir = tmpdir_factory.mktemp('torsiondrive_test_tmp')
     tmpdir.chdir()
-    example_version = '0.9.7'
+    example_version = '0.9.8'
     url = f'https://github.com/lpwgroup/torsiondrive_examples/archive/v{example_version}.tar.gz'
     subprocess.run(f'wget -nc -q {url}', shell=True, check=True)
     subprocess.run(f'tar zxf v{example_version}.tar.gz', shell=True, check=True)
@@ -87,6 +87,16 @@ def test_reproduce_1D_examples(example_path):
     shutil.copy('scan.xyz', 'orig_scan.xyz')
     dihedral_idxs, dihedral_ranges = launch.load_dihedralfile('dihedrals.txt')
     engine = launch.create_engine('terachem', inputfile='run.in', native_opt=True)
+    scanner = DihedralScanner(engine, dihedrals=dihedral_idxs, grid_spacing=[15], verbose=True)
+    scanner.master()
+    assert filecmp.cmp('scan.xyz', 'orig_scan.xyz')
+    # reproduce openmm local geomeTRIC
+    os.chdir(example_path)
+    os.chdir('hooh-1d/openmm/run_local/geometric')
+    subprocess.run('tar zxf opt_tmp.tar.gz', shell=True, check=True)
+    shutil.copy('scan.xyz', 'orig_scan.xyz')
+    dihedral_idxs, dihedral_ranges = launch.load_dihedralfile('dihedrals.txt')
+    engine = launch.create_engine('openmm', inputfile='hooh.pdb')
     scanner = DihedralScanner(engine, dihedrals=dihedral_idxs, grid_spacing=[15], verbose=True)
     scanner.master()
     assert filecmp.cmp('scan.xyz', 'orig_scan.xyz')

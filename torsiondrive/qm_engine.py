@@ -1,6 +1,7 @@
 import os
 import subprocess
 import numpy as np
+import copy
 from geometric.molecule import Molecule
 from torsiondrive.extra_constraints import build_geometric_constraint_string, build_terachem_constraint_string
 
@@ -143,6 +144,43 @@ class EngineBlank(QMEngine):
 
     def load_native_output(self):
         return Molecule()
+
+class EngineOpenMM(QMEngine):
+    def load_input(self, input_file):
+        """Input file is the name of the pdb file with the coords in we also require that the xml has the same name"""
+
+        self.m_pdb = Molecule(input_file)[0]
+        self.M = copy.deepcopy(self.m_pdb)
+
+        xml_name = os.path.splitext(input_file)[0] + '.xml'
+        # Check the xml file is present
+        assert os.path.exists(xml_name) is True, "OpenMM requires a pdb and xml file, ensure you have both in the current folder with the same prefix"
+        with open(xml_name) as f:
+            self.xml_content = f.read()
+
+    def write_input(self):
+        """Write a pdb file with the latest geometry and the input xml file"""
+
+        self.m_pdb.xyzs[0] = self.M.xyzs[0]
+        self.m_pdb.write('input.pdb')
+        with open('input.xml', 'w') as out:
+                out.write(self.xml_content)
+
+    def optimize_geomeTRIC(self):
+        """ run the constrained optimization using geomeTRIC package, in 3 steps:
+        1. Write a constraints.txt file.
+        2. Write a gradient job input file.
+        3. Run the job
+        """
+        # sep 1
+        self.write_constraints_txt()
+        # step 2
+        self.write_input()
+        # set3
+        self.run('geometric-optimize --prefix tdrive --qccnv --reset --epsilon 0.0 --enforce 0.1 --qdata --pdb '
+                 'input.pdb --openmm input.xml constraints.txt',
+                 input_files=['input.xml', 'input.pdb', 'constraints.txt'],
+                 output_files=['tdrive.log', 'tdrive.xyz', 'qdata.txt'])
 
 class EnginePsi4(QMEngine):
     def load_input(self, input_file):
