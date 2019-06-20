@@ -58,7 +58,7 @@ class DihedralScanner:
     verbose: bool
         let methods print more information when running
     """
-    def __init__(self, engine, dihedrals, grid_spacing, init_coords_M=None, energy_decrease_thresh=None, dihedral_ranges=None, energy_upper_limit=None, extra_constraints=None, verbose=False):
+    def __init__(self, engine, dihedrals, grid_spacing, init_coords_M=None, energy_decrease_thresh=None, dihedral_ranges=None, energy_upper_limit=None, extra_constraints=None, verbose=False, check_linear=True, check_bonded= True):
         self.engine = engine
         # store verbose flag for later printing
         self.verbose = verbose
@@ -104,6 +104,9 @@ class DihedralScanner:
         self.task_result_fname = 'dihedral_scanner_task_result.p'
         # threshold for determining the energy decrease
         self.energy_decrease_thresh = energy_decrease_thresh if energy_decrease_thresh is not None else 1e-5
+
+        self.check_linear = check_linear
+        self.check_bonded = check_bonded
 
     #----------------------
     # Initializing methods
@@ -166,13 +169,79 @@ class DihedralScanner:
     #--------------------
     #  General methods
     #--------------------
+
+def measure_dihedrals(self, molecule, dihedral_list, check_linear = True, check_bonded = True):
+    """
+    Requested features: check angle  of each dihedral, raise a warning message if the angle is larger than 165.
+    Aim to replace molecule.measure_dihedrals in "get_dihedral_id."
+    """
+    dihedrals = []
+    for lst in dihedral_list:
+        i, j, k, l = lst
+
+        if check_bonded == True:
+            bond_list = []
+            if i > j:
+                bond_list.append((j, i))
+            else:
+                bond_list.append((i, j))
+            if j > k:
+                bond_list.append((k, j))
+            else:
+                bond_list.append((j, k))
+            if k > l:
+                bond_list.append((l, k))
+            else:
+                bond_list.append((k, l))
+
+            if 'bonds'  not in molecule.Data:
+                molecule.build_bonds()
+            if any(p not in molecule.bonds for p in bond_list):
+                print([p not in molecule.bonds for p in bond_list])
+                print(f"Warning! some bonds in the dihedral {lst} is missing!")
+
+        x1 = molecule.xyzs[0][i]
+        x2 = molecule.xyzs[0][j]
+        x3 = molecule.xyzs[0][k]
+        x4 = molecule.xyzs[0][l]
+        v1 = x2-x1
+        v2 = x3-x2
+        v3 = x4-x3
+
+        if check_linear == True:
+            cos_angle1 = np.dot(-v1, v2)/(np.linalg.norm(v1)*np.linalg.norm(v2))
+            cos_angle2 = np.dot(-v2, v3)/(np.linalg.norm(v2)*np.linalg.norm(v3))
+            angle1 = np.arccos(cos_angle1) * 180 / np.pi
+            angle2 = np.arccos(cos_angle2) * 180 / np.pi
+            if angle1 > 165 or angle2 > 165:
+                print(f"Warning! {lst} contains a straight angle! angle1={angle1}, angle2={angle2}")
+
+
+        n1 = np.cross(v1, v2)
+        norm1 = np.linalg.norm(n1)
+        if norm1 != 0:
+            n1 /= norm1
+        n2 = np.cross(v2, v3)
+        norm2 = np.linalg.norm(n2)
+        if norm2 != 0:
+            n2 /= norm2
+        m1 = np.cross(v2, n1) / np.linalg.norm(v2)
+
+        x = np.dot(n2, m1)
+        y = np.dot(n2, n1)
+        phi = np.arctan2(x, y)
+        dihedral = phi * 180 / np.pi
+        dihedrals.append(float(dihedral))
+    return dihedrals
+
+
     def get_dihedral_id(self, molecule, check_grid_id=None):
         """
         Compute the closest grid ID for molecule (only first frame)
         If check_grid_id is given, will perform a check if the computed dihedral_values are close to the grid_id provided
         If the check is not passed, this function will return None
         """
-        dihedral_values = np.array([molecule.measure_dihedrals(*d)[0] for d in self.dihedrals])
+        dihedral_values = np.array([measure_dihedrals(molecule, self.dihedrals, check_linear= self.check_linear, check_bonded=self.check_bonded)])
         if check_grid_id is not None:
             assert len(check_grid_id) == len(dihedral_values), "Grid dimensions should be the same!"
             for dv, dref in zip(dihedral_values, check_grid_id):
