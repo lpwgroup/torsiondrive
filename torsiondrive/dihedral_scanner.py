@@ -241,7 +241,7 @@ class DihedralScanner:
         If check_grid_id is given, will perform a check if the computed dihedral_values are close to the grid_id provided
         If the check is not passed, this function will return None
         """
-        dihedral_values = np.array([measure_dihedrals(molecule, self.dihedrals, check_linear= self.check_linear, check_bonded=self.check_bonded)])
+        dihedral_values = np.array(self.measure_dihedrals(molecule, self.dihedrals, check_linear= self.check_linear, check_bonded=self.check_bonded))
         if check_grid_id is not None:
             assert len(check_grid_id) == len(dihedral_values), "Grid dimensions should be the same!"
             for dv, dref in zip(dihedral_values, check_grid_id):
