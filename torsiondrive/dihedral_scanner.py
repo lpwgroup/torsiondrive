@@ -12,7 +12,7 @@ import json
 import os
 import pickle
 import time
-
+from warnings import warn
 import numpy as np
 from geometric.molecule import Molecule
 from torsiondrive.priority_queue import PriorityQueue
@@ -198,7 +198,7 @@ class DihedralScanner:
                     molecule.build_bonds()
                 if any(p not in molecule.bonds for p in bond_list):
                     print([p not in molecule.bonds for p in bond_list])
-                    print(f"Warning! some bonds in the dihedral {lst} is missing!")
+                    warn(UserWarning(f"Warning! some bonds in the dihedral {lst} is missing!"))
 
             x1 = molecule.xyzs[0][i]
             x2 = molecule.xyzs[0][j]
@@ -214,7 +214,7 @@ class DihedralScanner:
                 angle1 = np.arccos(cos_angle1) * 180 / np.pi
                 angle2 = np.arccos(cos_angle2) * 180 / np.pi
                 if angle1 > 165 or angle2 > 165:
-                    print(f"Warning! {lst} contains a straight angle! angle1={angle1}, angle2={angle2}")
+                    warn(UserWarning(f"Warning! {lst} contains a straight angle!"))
 
 
             n1 = np.cross(v1, v2)

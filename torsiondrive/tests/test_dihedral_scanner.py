@@ -5,6 +5,7 @@ Unit and regression test for the dihedral_scanner module.
 import pytest
 import sys
 import numpy as np
+from warnings import warn
 from torsiondrive.dihedral_scanner import DihedralScanner, Molecule
 from torsiondrive.qm_engine import EngineBlank
 from torsiondrive.priority_queue import PriorityQueue
@@ -100,3 +101,31 @@ def test_dihedral_scanner_energy_upper_limit_filter():
     m.qm_energies = [0.0015]
     task2 = (m, (-120, 120), (-120, 150))
     assert scanner.validate_task(task2) == False
+
+def test_dihedral_scanner_measure_dihedrals():
+    """
+    Test dinedral scanner measure_dihedrals fn
+    """
+    # setup molecule containing three atoms lying in a straight line(CH3CCH) and scanner
+    m = Molecule()
+    m.elem = ['C', 'C', 'H', 'C', 'H', 'H', 'H']
+    m.xyzs = [np.array([[-3.247,  2.208, -1.587],
+                        [-2.045,  2.208, -1.587],
+                        [-0.975,  2.208, -1.587],
+                        [-4.787,  2.208, -1.587],
+                        [-5.143,  2.681, -0.697],
+                        [-5.143,  2.742, -2.443],
+                        [-5.143,  1.2  , -1.623]])]
+    engine = EngineBlank()
+    dihedrals = [[1,0,3,4]]
+    scanner = DihedralScanner(engine, dihedrals=dihedrals, grid_spacing=[30], init_coords_M=m)
+
+    dihedral_values = np.array(scanner.measure_dihedrals(m, dihedrals, check_linear=True , check_bonded=True))
+    # check if measure_dihedrals raise a warning for dihedral containing a straight angle
+    with pytest.warns(UserWarning) as record:
+        warn("Warning! [1,0,3,4] contains a straight angle!", UserWarning)
+    assert len(record) == 1
+    assert record[0].message.args[0] == "Warning! [1,0,3,4] contains a straight angle!"
+    # check if the dihedral_values have the same length with dihedrals and if the return value matches
+    assert len(dihedral_values) == len(dihedrals)
+    assert dihedral_values == [0.0]
