@@ -145,6 +145,32 @@ class EngineBlank(QMEngine):
     def load_native_output(self):
         return Molecule()
 
+class EngineGaussian09(QMEngine):
+    def load_input(self, input_file):
+        """Load a Gaussian09 input file a
+        Exmaple input file:
+
+        memory 12 gb
+        molecule {
+        0 1
+        H  -0.90095  -0.50851  -0.76734
+        O  -0.72805   0.02496   0.02398
+        O   0.72762   0.03316  -0.02696
+        H   0.90782  -0.41394   0.81465
+        units angstrom
+        no_reorient
+        symmetry c1
+        }
+        set globals {
+            basis         6-31+g*
+            freeze_core   True
+            guess         sad
+            scf_type      df
+            print         1
+        }
+        set_num_threads(1)
+        gradient('mp2')"""
+
 class EngineOpenMM(QMEngine):
     def load_input(self, input_file):
         """Input file is the name of the pdb file with the coords in we also require that the xml has the same name"""
