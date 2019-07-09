@@ -5,6 +5,7 @@ import copy
 from geometric.molecule import Molecule
 from torsiondrive.extra_constraints import build_geometric_constraint_string, build_terachem_constraint_string
 
+
 def check_all_float(iterable):
     try:
         [float(i) for i in iterable]
@@ -12,9 +13,10 @@ def check_all_float(iterable):
     except ValueError:
         return False
 
+
 class QMEngine(object):
     def __init__(self, input_file=None, work_queue=None, native_opt=False, extra_constraints=None):
-        self.temp_type = None # will be set to either "gradient" or "optimize" later
+        self.temp_type = None  # will be set to either "gradient" or "optimize" later
         self.work_queue = work_queue
         self.native_opt = native_opt
         self.extra_constraints = extra_constraints
@@ -46,7 +48,7 @@ class QMEngine(object):
             constraints_string = "$set\n"
             for d1, d2, d3, d4, v in self.dihedral_idx_values:
                 # geomeTRIC use atomic index starting from 1
-                constraints_string += f"dihedral {d1+1} {d2+1} {d3+1} {d4+1} {float(v)}\n"
+                constraints_string += f"dihedral {d1 + 1} {d2 + 1} {d3 + 1} {d4 + 1} {float(v)}\n"
         else:
             constraints_string = build_geometric_constraint_string(self.extra_constraints, self.dihedral_idx_values)
         with open('constraints.txt', 'w') as outfile:
@@ -134,8 +136,10 @@ class QMEngine(object):
     def load_native_output(self):
         raise NotImplementedError
 
+
 class EngineBlank(QMEngine):
     """ A blank engine only used in testing """
+
     def optimize_native(self):
         return
 
@@ -144,6 +148,7 @@ class EngineBlank(QMEngine):
 
     def load_native_output(self):
         return Molecule()
+
 
 class EngineOpenMM(QMEngine):
     def load_input(self, input_file):
@@ -154,7 +159,8 @@ class EngineOpenMM(QMEngine):
 
         xml_name = os.path.splitext(input_file)[0] + '.xml'
         # Check the xml file is present
-        assert os.path.exists(xml_name) is True, "OpenMM requires a pdb and xml file, ensure you have both in the current folder with the same prefix"
+        assert os.path.exists(
+            xml_name) is True, "OpenMM requires a pdb and xml file, ensure you have both in the current folder with the same prefix"
         with open(xml_name) as f:
             self.xml_content = f.read()
 
@@ -164,7 +170,7 @@ class EngineOpenMM(QMEngine):
         self.m_pdb.xyzs[0] = self.M.xyzs[0]
         self.m_pdb.write('input.pdb')
         with open('input.xml', 'w') as out:
-                out.write(self.xml_content)
+            out.write(self.xml_content)
 
     def optimize_geomeTRIC(self):
         """ run the constrained optimization using geomeTRIC package, in 3 steps:
@@ -181,6 +187,7 @@ class EngineOpenMM(QMEngine):
                  'input.pdb --openmm input.xml constraints.txt',
                  input_files=['input.xml', 'input.pdb', 'constraints.txt'],
                  output_files=['tdrive.log', 'tdrive.xyz', 'qdata.txt'])
+
 
 class EnginePsi4(QMEngine):
     def load_input(self, input_file):
@@ -212,7 +219,7 @@ class EnginePsi4(QMEngine):
         coords = []
         elems = []
         reading_molecule, found_geo = False, False
-        psi4_temp = [] # store a template of the input file for generating new ones
+        psi4_temp = []  # store a template of the input file for generating new ones
         with open(input_file) as psi4in:
             for line in psi4in:
                 line_sl = line.strip().lower()
@@ -235,7 +242,7 @@ class EnginePsi4(QMEngine):
                             psi4_temp.append("$!optking@here")
                 else:
                     psi4_temp.append(line)
-                if  line_sl.startswith('gradient('):
+                if line_sl.startswith('gradient('):
                     self.temp_type = "gradient"
                 elif line_sl.startswith('optimize('):
                     self.temp_type = "optimize"
@@ -278,7 +285,7 @@ class EnginePsi4(QMEngine):
         self.optkingStr = '\nset optking {\n  fixed_dihedral = ("\n'
         for d1, d2, d3, d4, v in self.dihedral_idx_values:
             # Optking use atom index starting from 1
-            self.optkingStr += '        %d  %d  %d  %d  %f\n' % (d1+1, d2+1, d3+1, d4+1, v)
+            self.optkingStr += '        %d  %d  %d  %d  %f\n' % (d1 + 1, d2 + 1, d3 + 1, d4 + 1, v)
         self.optkingStr += '  ")\n}\n'
         # write input file
         self.write_input('input.dat')
@@ -298,7 +305,8 @@ class EnginePsi4(QMEngine):
         self.write_input('input.dat')
         # step 3
         cmd = 'geometric-optimize --prefix tdrive --qccnv --reset --epsilon 0.0 --enforce 0.1 --qdata --psi4 input.dat constraints.txt'
-        self.run(cmd, input_files=['input.dat', 'constraints.txt'], output_files=['tdrive.log', 'tdrive.xyz', 'qdata.txt'])
+        self.run(cmd, input_files=['input.dat', 'constraints.txt'],
+                 output_files=['tdrive.log', 'tdrive.xyz', 'qdata.txt'])
 
     def load_native_output(self, filename='output.dat'):
         """ Load the optimized geometry and energy into a new molecule object and return """
@@ -328,6 +336,154 @@ class EnginePsi4(QMEngine):
         return m
 
 
+class EngineGaussian(QMEngine):
+    def load_input(self, input_file):
+        """
+        !!!only Cartesian molecule specification is supported at the moment!!!
+        Load Gaussian09 input
+        Example input file:
+
+        %Mem=64GB
+        %NProcShared=32
+        %Chk=lig
+        # B3LYP/6-31G(d) Opt=ModRedundant
+
+        water energy
+
+        0   1
+        O  -0.464   0.177   0.0
+        H  -0.464   1.137   0.0
+        H   0.441  -0.143   0.0
+
+
+        """
+        elems, coords = [], []
+        reading_molecule, found_geo = False, False
+        gauss_temp = []  # store a template of the input file for generating new ones
+        with open(input_file) as gauss_in:
+            for line in gauss_in:
+                line_sl = line.strip().lower()
+                ls = line_sl.split()
+                if len(ls) == 4 and check_all_float(ls[1:]):
+                    reading_molecule = True
+                    # gauss_temp.append(line)
+                    elems.append(ls[0])
+                    coords.append(ls[1:])
+                    if not found_geo:
+                        found_geo=True
+                        gauss_temp.append("$!geometry@here")
+
+                elif reading_molecule:
+                    if line_sl == '':
+                        reading_molecule = False
+                        gauss_temp.append(line)
+                        gauss_temp.append("$!optblock@here")
+
+                else:
+                    gauss_temp.append(line)
+
+                if 'opt' in line_sl:
+                    self.temp_type = 'optimize'
+        if self.native_opt:
+            assert self.temp_type == 'optimize', "input_file should be a opt job to use native opt"
+        # else:
+        # assert self.temp_type == 'gradient', "input_file should be a gradient job to use geomeTRIC"
+        # self.qchem_temp will enable writing input files with new geometries
+        # self.qchem_temp = qchem_temp
+        # here self.M can be and will be overwritten by external functions
+        self.gauss_temp = gauss_temp
+        self.M = Molecule()
+        self.M.elem = elems
+        self.M.xyzs = [np.array(coords, dtype=float)]
+        self.M.build_topology()
+
+    def write_input(self, filename='g09.com'):
+        """ Write Gaussian input using Molecule Class """
+        assert hasattr(self, 'gauss_temp'), "self.gauss_temp not set, call load_input() first"
+        with open(filename, 'w') as outfile:
+            for line in self.gauss_temp:
+                if line == '$!geometry@here':
+                    for e, c in zip(self.M.elem, self.M.xyzs[0]):
+                        outfile.write("%-7s %13.7f %13.7f %13.7f\n" % (e.upper(), c[0], c[1], c[2]))
+
+                elif line == "$!optblock@here":
+                    if hasattr(self, 'optblockStr'):
+                        # self.optblockStr will be set by self.optimize_native()
+                        outfile.write(self.optblockStr)
+
+                else:
+                    outfile.write(line)
+
+    def optimize_native(self):
+        raise NotImplementedError
+
+    def optimize_native(self):
+        """
+        Run the constrained optimization, following Gaussian09 manual.
+        1. write a optimization job input file.
+        2. run the job
+        """
+        assert self.temp_type == 'optimize', "To use native optimization, the input file be an opt job"
+        # if self.extra_constraints is None:
+        #    raise RuntimeError('Need extra constraints to run Gaussian constrained optimizations')
+        self.optblockStr =''
+        for d1, d2, d3, d4, v in self.dihedral_idx_values:
+            # self.optblockStr+='{} {} {} {} ={:.4f} B\n'.format(d1,d2,d3,d4,v)
+            self.optblockStr += '{} {} {} {} F\n'.format(d1, d2, d3, d4)
+        '''
+        # add the $opt block
+        self.optblockStr = '\n$opt\nCONSTRAINT\n'
+        for d1, d2, d3, d4, v in self.dihedral_idx_values:
+            # Optking use atom index starting from 1
+            self.optblockStr += 'tors  %d  %d  %d  %d  %f\n' % (d1 + 1, d2 + 1, d3 + 1, d4 + 1, v)
+        self.optblockStr += 'ENDCONSTRAINT\n$end\n'
+        '''
+        # write input file
+        self.write_input('g09.com')
+        # run the job
+        self.run('g09 < g09.com > g09.log', input_files=['g09.com'], output_files=['g09.log'])
+
+    def load_native_output(self, filename='g09.log'):
+        # file_prefix=filename.split('.')[0]
+        # fchk_name=file_prefix+'.fchk'
+        # os.system('formchk '+filename+' '+fchk_name)
+        """ Load the optimized geometry and energy into a new molecule object and return """
+        found_opt_result = False
+        final_energy, elems, coords = None, [], []
+        with open(filename) as outfile:
+            outfile = outfile.readlines()
+            for counter, line in enumerate(outfile):
+                line = line.strip()
+                if line.startswith('SCF Done'):
+                    final_energy = float(line.split()[4])
+                elif line.startswith('Optimization completed'):
+                    found_opt_result = True
+                elif line.startswith('1\\1\\'):
+                    final_sum_start = counter
+                elif line.endswith('@'):
+                    final_sum_end = counter
+        final_summary = outfile[final_sum_start:final_sum_end + 1]
+        final_summary = "".join(final_summary).replace('\n', '').replace(' ', '').split('\\\\')
+        geom = [line.strip() for line in final_summary if line.startswith('0,1')][0]
+        geom = geom.replace('\n', '').replace(' ', '').split('\\')[1:]
+        for line in geom:
+            ls = line.split(',')
+            if len(ls) == 4 and check_all_float(ls[1:]):
+                elems.append(ls[0])
+                coords.append(ls[1:4])
+        if found_opt_result is not True:
+            raise RuntimeError("Geometry optimisation failed in %s" % filename)
+        if final_energy is None:
+            raise RuntimeError("Final energy not found in %s" % filename)
+        if len(elems) == 0 or len(coords) == 0:
+            raise RuntimeError("Final geometry not found in %s" % filename)
+        m = Molecule()
+        m.elem = elems
+        m.xyzs = [np.array(coords, dtype=float)]
+        m.qm_energies = [final_energy]
+        m.build_topology()
+        return m
+
 class EngineQChem(QMEngine):
     def load_input(self, input_file):
         """
@@ -349,9 +505,9 @@ class EngineQChem(QMEngine):
         geom_opt_max_cycles  150
         $end
         """
-        elems,coords = [], []
+        elems, coords = [], []
         reading_molecule, found_geo = False, False
-        qchem_temp = [] # store a template of the input file for generating new ones
+        qchem_temp = []  # store a template of the input file for generating new ones
         with open(input_file) as qchemin:
             for line in qchemin:
                 line_sl = line.strip().lower()
@@ -419,7 +575,7 @@ class EngineQChem(QMEngine):
         self.optblockStr = '\n$opt\nCONSTRAINT\n'
         for d1, d2, d3, d4, v in self.dihedral_idx_values:
             # Optking use atom index starting from 1
-            self.optblockStr += 'tors  %d  %d  %d  %d  %f\n' % (d1+1, d2+1, d3+1, d4+1, v)
+            self.optblockStr += 'tors  %d  %d  %d  %d  %f\n' % (d1 + 1, d2 + 1, d3 + 1, d4 + 1, v)
         self.optblockStr += 'ENDCONSTRAINT\n$end\n'
         # write input file
         self.write_input('qc.in')
@@ -517,14 +673,15 @@ class EngineTerachem(QMEngine):
             self.constraintsStr = '\n$constraint_set\n'
             for d1, d2, d3, d4, v in self.dihedral_idx_values:
                 # TeraChem use atom index starting from 1
-                self.constraintsStr += f"dihedral {float(v)} {d1+1}_{d2+1}_{d3+1}_{d4+1}\n"
+                self.constraintsStr += f"dihedral {float(v)} {d1 + 1}_{d2 + 1}_{d3 + 1}_{d4 + 1}\n"
             self.constraintsStr += '$end\n'
         else:
             self.constraintsStr = build_terachem_constraint_string(self.extra_constraints, self.dihedral_idx_values)
         # write input file
         self.write_input()
         # run the job
-        self.run('terachem run.in > run.out', input_files=['run.in', self.tera_geo_file], output_files=['run.out', 'scr'])
+        self.run('terachem run.in > run.out', input_files=['run.in', self.tera_geo_file],
+                 output_files=['run.out', 'scr'])
 
     def optimize_geomeTRIC(self):
         """ run the constrained optimization using geomeTRIC package, in 3 steps:
@@ -539,7 +696,8 @@ class EngineTerachem(QMEngine):
         self.write_input()
         # step 3
         cmd = 'geometric-optimize --prefix tdrive --qccnv --reset --epsilon 0.0 --enforce 0.1 --qdata run.in constraints.txt'
-        self.run(cmd, input_files=['run.in', self.tera_geo_file, 'constraints.txt'], output_files=['tdrive.log', 'tdrive.xyz', 'qdata.txt'])
+        self.run(cmd, input_files=['run.in', self.tera_geo_file, 'constraints.txt'],
+                 output_files=['tdrive.log', 'tdrive.xyz', 'qdata.txt'])
 
     def load_native_output(self):
         """ Load the optimized geometry and energy into a new molecule object and return """
@@ -547,3 +705,6 @@ class EngineTerachem(QMEngine):
         # read the energy from optim.xyz comment line
         m.qm_energies = [float(m.comms[0].split(maxsplit=1)[0])]
         return m
+
+
+
