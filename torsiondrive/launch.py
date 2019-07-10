@@ -104,7 +104,8 @@ def create_engine(enginename, inputfile=None, work_queue_port=None, native_opt=F
     Function to create a QM Engine object with work_queue and geomeTRIC setup.
     This is intentionally left outside of DihedralScanner class, because multiple DihedralScanner could share the same engine
     """
-    engine_dict = {'psi4': EnginePsi4, 'qchem': EngineQChem, 'terachem':EngineTerachem, 'openmm': EngineOpenMM,'gaussian':EngineGaussian}
+    engine_dict = {'psi4': EnginePsi4, 'qchem': EngineQChem, 'terachem': EngineTerachem, 'openmm': EngineOpenMM, 'gaussian': EngineGaussian}
+    print(engine_dict)
     # initialize a work_queue
     if work_queue_port is not None:
         from torsiondrive.wq_tools import WorkQueue
