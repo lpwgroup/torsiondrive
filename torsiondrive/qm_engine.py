@@ -429,7 +429,7 @@ class EngineGaussian(QMEngine):
         self.optblockStr =''
         for d1, d2, d3, d4, v in self.dihedral_idx_values:
             # self.optblockStr+='{} {} {} {} ={:.4f} B\n'.format(d1,d2,d3,d4,v)
-            self.optblockStr += '{} {} {} {} F\n'.format(d1, d2, d3, d4)
+            self.optblockStr += '{} {} {} {} F\n'.format(d1+1, d2+1, d3+1, d4+1)
         '''
         # add the $opt block
         self.optblockStr = '\n$opt\nCONSTRAINT\n'
@@ -442,44 +442,50 @@ class EngineGaussian(QMEngine):
         self.write_input('g09.com')
         # run the job
         self.run('g09 < g09.com > g09.log', input_files=['g09.com'], output_files=['g09.log'])
+        self.run('formchk lig.chk lig.fchk')
 
-    def load_native_output(self, filename='g09.log'):
+    def load_native_output(self, filename='lig.fchk',filename2='g09.log'):
         # file_prefix=filename.split('.')[0]
         # fchk_name=file_prefix+'.fchk'
         # os.system('formchk '+filename+' '+fchk_name)
         """ Load the optimized geometry and energy into a new molecule object and return """
         found_opt_result = False
         final_energy, elems, coords = None, [], []
+        with open(filename2) as logfile:
+            logfile = logfile.readlines()
+            for counter, line in enumerate(logfile):
+                line = line.strip()
+                if line.startswith('Optimization completed'):
+                    found_opt_result = True
+
+        if found_opt_result is not True:
+            raise RuntimeError("Geometry optimisation failed in %s" % filename2)
+
         with open(filename) as outfile:
             outfile = outfile.readlines()
             for counter, line in enumerate(outfile):
-                line = line.strip()
-                if line.startswith('SCF Done'):
-                    final_energy = float(line.split()[4])
-                elif line.startswith('Optimization completed'):
-                    found_opt_result = True
-                elif line.startswith('1\\1\\'):
-                    final_sum_start = counter
-                elif line.endswith('@'):
-                    final_sum_end = counter
-        final_summary = outfile[final_sum_start:final_sum_end + 1]
-        final_summary = "".join(final_summary).replace('\n', '').replace(' ', '').split('\\\\')
-        geom = [line.strip() for line in final_summary if line.startswith('0,1')][0]
-        geom = geom.replace('\n', '').replace(' ', '').split('\\')[1:]
-        for line in geom:
-            ls = line.split(',')
-            if len(ls) == 4 and check_all_float(ls[1:]):
-                elems.append(ls[0])
-                coords.append(ls[1:4])
-        if found_opt_result is not True:
-            raise RuntimeError("Geometry optimisation failed in %s" % filename)
+                if line.startswith('Current cartesian coordinates'):
+                    start_xyz_pos = int(counter + 1)
+                    num_xyz=int(line.split()[5])
+                    end_xyz_pos=int(np.ceil(num_xyz/5)+start_xyz_pos)
+                if line.startswith('Total Energy'):
+                    energy_pos = counter
+
+        if not start_xyz_pos and end_xyz_pos:
+            raise EOFError('Cannot locate coordinates in lig.fchk file.')
+
+        for line in outfile[start_xyz_pos: end_xyz_pos]:
+            coords.extend([float(num) * 0.529177 for num in line.strip('\n').split()])
+
+        final_energy = float(outfile[energy_pos].split()[3])
+
         if final_energy is None:
             raise RuntimeError("Final energy not found in %s" % filename)
-        if len(elems) == 0 or len(coords) == 0:
+        if len(coords) == 0:
             raise RuntimeError("Final geometry not found in %s" % filename)
         m = Molecule()
-        m.elem = elems
-        m.xyzs = [np.array(coords, dtype=float)]
+        m.elem = self.M.elem
+        m.xyzs = [np.reshape(coords,(int(len(m.elem)),3))]
         m.qm_energies = [final_energy]
         m.build_topology()
         return m
