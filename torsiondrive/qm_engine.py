@@ -428,7 +428,8 @@ class EngineGaussian(QMEngine):
         #    raise RuntimeError('Need extra constraints to run Gaussian constrained optimizations')
         self.optblockStr =''
         for d1, d2, d3, d4, v in self.dihedral_idx_values:
-            # self.optblockStr+='{} {} {} {} ={:.4f} B\n'.format(d1,d2,d3,d4,v)
+            self.optblockStr += '{} {} {} {} ={:.4f} B\n'.format(d1+1, d2+1, d3+1, d4+1, v)
+        for d1, d2, d3, d4, v in self.dihedral_idx_values:
             self.optblockStr += '{} {} {} {} F\n'.format(d1+1, d2+1, d3+1, d4+1)
         '''
         # add the $opt block
