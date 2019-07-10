@@ -367,7 +367,7 @@ class EngineGaussian(QMEngine):
                 if len(ls) == 4 and check_all_float(ls[1:]):
                     reading_molecule = True
                     # gauss_temp.append(line)
-                    elems.append(ls[0])
+                    elems.append(ls[0].upper())
                     coords.append(ls[1:])
                     if not found_geo:
                         found_geo=True
