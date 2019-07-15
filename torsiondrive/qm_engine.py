@@ -464,7 +464,7 @@ class EngineGaussian(QMEngine):
             raise RuntimeError("Final geometry not found in %s" % filename)
         m = Molecule()
         m.elem = self.M.elem
-        m.xyzs = [np.reshape(coords,(int(len(m.elem)),3))]
+        m.xyzs = [np.reshape(coords, (int(len(m.elem)), 3))]
         m.qm_energies = [final_energy]
         m.build_topology()
         return m
