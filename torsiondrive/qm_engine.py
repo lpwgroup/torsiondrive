@@ -342,8 +342,8 @@ class EngineGaussian(QMEngine):
         Load Gaussian09 input
         Example input file:
 
-        %Mem=64GB
-        %NProcShared=32
+        %Mem=6GB
+        %NProcShared=2
         %Chk=lig
         # B3LYP/6-31G(d) Opt=ModRedundant
 
@@ -367,7 +367,7 @@ class EngineGaussian(QMEngine):
                     elems.append(ls[0])
                     coords.append(ls[1:])
                     if not found_geo:
-                        found_geo=True
+                        found_geo = True
                         gauss_temp.append("$!geometry@here")
 
                 elif reading_molecule:
@@ -397,7 +397,7 @@ class EngineGaussian(QMEngine):
             for line in self.gauss_temp:
                 if line == '$!geometry@here':
                     for e, c in zip(self.M.elem, self.M.xyzs[0]):
-                        outfile.write("%-7s %13.7f %13.7f %13.7f\n" % (e.upper(), c[0], c[1], c[2]))
+                        outfile.write("%-7s %13.7f %13.7f %13.7f\n" % (e, c[0], c[1], c[2]))
 
                 elif line == "$!optblock@here":
                     if hasattr(self, 'optblockStr'):

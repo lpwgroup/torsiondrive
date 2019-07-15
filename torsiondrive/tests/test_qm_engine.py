@@ -46,8 +46,8 @@ def test_engine_gaussian_native(tmpdir):
     tmpdir.chdir()
     with open('input.dat', 'w') as g09in:
         g09in.write("""
-    %Mem=64GB
-    %NProcShared=32
+    %Mem=6GB
+    %NProcShared=2
     %Chk=lig
     # B3LYP/6-31G(d) Opt=ModRedundant
 
