@@ -335,7 +335,7 @@ class EnginePsi4(QMEngine):
         m.build_topology()
         return m
 
-class EngineGaussian(QMEngine):
+class EngineGaussian09(QMEngine):
     def load_input(self, input_file):
         """
         !!!only Cartesian molecule specification is supported at the moment!!!
@@ -390,7 +390,7 @@ class EngineGaussian(QMEngine):
         self.M.xyzs = [np.array(coords, dtype=float)]
         self.M.build_topology()
 
-    def write_input(self, filename='g09.com'):
+    def write_input(self, filename='gaussian.com'):
         """ Write Gaussian input using Molecule Class """
         assert hasattr(self, 'gauss_temp'), "self.gauss_temp not set, call load_input() first"
         with open(filename, 'w') as outfile:
@@ -421,12 +421,12 @@ class EngineGaussian(QMEngine):
             self.optblockStr += f'{d1 + 1} {d2 + 1} {d3 + 1} {d4 + 1} ={v:.3f} B\n'  # Build the angle
             self.optblockStr += f'{d1 + 1} {d2 + 1} {d3 + 1} {d4 + 1} F\n'           # Freeze the angle
         # write input file
-        self.write_input('g09.com')
+        self.write_input('gaussian.com')
         # run the job
-        self.run('g09 < g09.com > g09.log', input_files=['g09.com'], output_files=['g09.log'])
+        self.run('g09 < gaussian.com > gaussian.log', input_files=['gaussian.com'], output_files=['gaussian.log'])
         self.run('formchk lig.chk lig.fchk')    # More reliable to get the geometry from the log file and convert it
 
-    def load_native_output(self, filename='lig.fchk', filename2='g09.log'):
+    def load_native_output(self, filename='lig.fchk', filename2='gaussian.log'):
         """ Load the optimized geometry and energy into a new molecule object and return """
         found_opt_result = False
         final_energy, elems, coords = None, [], []
@@ -456,6 +456,9 @@ class EngineGaussian(QMEngine):
         for line in outfile[start_xyz_pos: end_xyz_pos]:
             coords.extend([float(num) * 0.529177 for num in line.strip('\n').split()])
 
+        # Make sure we have all of the coordinates
+        assert len(coords) == num_xyz, "Could not extract the optimised geometry"
+
         final_energy = float(outfile[energy_pos].split()[3])
 
         if final_energy is None:
@@ -468,6 +471,30 @@ class EngineGaussian(QMEngine):
         m.qm_energies = [final_energy]
         m.build_topology()
         return m
+
+
+class EngineGaussian16(EngineGaussian09):
+    """An engine to run gaussian16 changes some file reading functionality; uses the same input format as gaussian09"""
+
+    def optimize_native(self):
+        """
+        Run the constrained optimization, following Gaussian16 manual.
+        1. write a optimization job input file.
+        2. run the job
+        """
+        assert self.temp_type == 'optimize', "To use native optimization, the input file be an opt job"
+        if self.extra_constraints is not None:
+            raise RuntimeError('extra constraints not supported in Gaussian16 native optimizations')
+        self.optblockStr = ''
+        for d1, d2, d3, d4, v in self.dihedral_idx_values:
+            self.optblockStr += f'{d1 + 1} {d2 + 1} {d3 + 1} {d4 + 1} ={v:.3f} B\n'  # Build the angle
+            self.optblockStr += f'{d1 + 1} {d2 + 1} {d3 + 1} {d4 + 1} F\n'  # Freeze the angle
+        # write input file
+        self.write_input('gaussian.com')
+        # run the job
+        self.run('g16 < gaussian.com > gaussian.log', input_files=['gaussian.com'], output_files=['gaussian.log'])
+        self.run('formchk lig.chk lig.fchk')  # More reliable to get the geometry from the log file and convert it
+
 
 class EngineQChem(QMEngine):
     def load_input(self, input_file):
