@@ -74,7 +74,7 @@ def measure_dihedrals(molecule, dihedral_list, check_linear=True, check_bonded=T
     check_bonded: Bool
         If True, will check if all i-j, j-k, k-l are bonded for each dihedral, print a warning if not.
     """
-    assert all(len(d) == 4 for d in dihedral_list), "each dihedral in dihedrals should have 4 indices, e.g. (1,2,3,4)"
+    assert all(len(d) == 4 for d in dihedral_list), f"Dihedral should have 4 indices. Please check {dihedral_list}"
     if check_bonded:
         # collect all bonds needs to be checked from dihedral_list
         bonds_to_check = set()
@@ -105,11 +105,11 @@ def measure_dihedrals(molecule, dihedral_list, check_linear=True, check_bonded=T
             if n1 < dist_thresh or n2 < dist_thresh or n3 < dist_thresh:
                 warn(f"Two atoms have same coordinate for dihedral {dihedral}", UserWarning)
             else:
-                angle_cos_thresh = -0.9659258 # cos(165)
-                nv2 = [-v2[0], -v2[1], -v2[2]]
-                if dot3(v1, nv2) / (n1*n2) < angle_cos_thresh or dot3(nv2, v3) / (n2*n3) < angle_cos_thresh:
+                angle_cos_thresh = 0.9659258 # cos(15 degree)
+                # if angle(v1, v2) < 15 degree means i-j-k > 165 degree
+                if dot3(v1, v2) > n1 * n2 * angle_cos_thresh or dot3(v2, v3) > n2 * n3 * angle_cos_thresh:
                     warn(f"Angle close to straight found in dihedral {dihedral}", UserWarning)
-        # compute dihedral in a stable way.
+        # compute dihedral in a stable way
         c12 = cross3(v1, v2)
         c23 = cross3(v2, v3)
         # https://en.wikipedia.org/wiki/Dihedral_angle
@@ -147,7 +147,7 @@ class DihedralScanner:
     verbose: bool
         let methods print more information when running
     """
-    def __init__(self, engine, dihedrals, grid_spacing, init_coords_M=None, energy_decrease_thresh=None, dihedral_ranges=None, energy_upper_limit=None, extra_constraints=None, verbose=False, check_linear=True, check_bonded= True):
+    def __init__(self, engine, dihedrals, grid_spacing, init_coords_M=None, energy_decrease_thresh=None, dihedral_ranges=None, energy_upper_limit=None, extra_constraints=None, verbose=False):
         self.engine = engine
         # store verbose flag for later printing
         self.verbose = verbose
@@ -193,9 +193,6 @@ class DihedralScanner:
         self.task_result_fname = 'dihedral_scanner_task_result.p'
         # threshold for determining the energy decrease
         self.energy_decrease_thresh = energy_decrease_thresh if energy_decrease_thresh is not None else 1e-5
-
-        self.check_linear = check_linear
-        self.check_bonded = check_bonded
 
     #----------------------
     # Initializing methods
@@ -265,7 +262,7 @@ class DihedralScanner:
         If check_grid_id is given, will perform a check if the computed dihedral_values are close to the grid_id provided
         If the check is not passed, this function will return None
         """
-        dihedral_values = np.array(measure_dihedrals(molecule, self.dihedrals, check_linear= self.check_linear, check_bonded=self.check_bonded))
+        dihedral_values = measure_dihedrals(molecule, self.dihedrals)
         if check_grid_id is not None:
             assert len(check_grid_id) == len(dihedral_values), "Grid dimensions should be the same!"
             for dv, dref in zip(dihedral_values, check_grid_id):
