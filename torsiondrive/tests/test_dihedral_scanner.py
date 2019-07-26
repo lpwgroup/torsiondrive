@@ -117,21 +117,20 @@ def test_measure_dihedrals():
                         [-5.143,  2.742, -2.443],
                         [-5.143,  1.2  , -1.623]])]
     # check if the function raises error when wrong dihedral_list is wrong
-    with pytest.raises(Exception) as e_info:
+    with pytest.raises(AssertionError) as e_info:
         wrong_dihedrals1 = [[1,0,3]]
         measure_dihedrals(m1, wrong_dihedrals1, check_linear=False , check_bonded=False)
         assert len(e_enfo) != 0
-    with pytest.raises(Exception) as e_info:
+    with pytest.raises(IndexError) as e_info:
         wrong_dihedrals2 = [[1,0,3,10]]
         measure_dihedrals(m1, wrong_dihedrals2, check_linear=False , check_bonded=False)
         assert len(e_enfo) != 0
-
     # check if measure_dihedrals raise a warning for dihedral containing a straight angle
     with pytest.warns(UserWarning) as record:
         dihedrals1 = [[1,0,3,4]]
-        dihedral_values = np.array(measure_dihedrals(m1, dihedrals1, check_linear=True , check_bonded=True))
+        dihedral_values = measure_dihedrals(m1, dihedrals1, check_linear=True , check_bonded=True)
         assert len(record) == 1
-        assert record[0].message.args[0] == "Warning! Input dihedral_list contains a straight angle!"
+        assert 'straight' in record[0].message.args[0].lower()
         # check if the dihedral_values have the same length with dihedrals and if the return value matches
         assert len(dihedral_values) == len(dihedrals1)
         assert dihedral_values == [0.0]
@@ -140,14 +139,13 @@ def test_measure_dihedrals():
         dihedrals2 = [[0,0,3,4]]
         dihedral_values = np.array(measure_dihedrals(m1, dihedrals2, check_linear=True, check_bonded=False))
         assert len(record) == 1
-        assert record[0].message.args[0] == "Warning! Input dihedral_list contains two or more atoms in the same position!"
+        assert 'same coordinate' in record[0].message.args[0].lower()
     # check if measure_dihedrals raise a warning for dihedral containing  a nonbonded atom sequence
     with pytest.warns(UserWarning) as record:
         dihedrals3 = [[2,1,0,4]]
-        dihedral_values = np.array(measure_dihedrals(m1, dihedrals3, check_linear=False, check_bonded=True))
+        dihedral_values = measure_dihedrals(m1, dihedrals3, check_linear=False, check_bonded=True)
         assert len(record) == 1
-        assert record[0].message.args[0] == "Warning! some bonds in the input dihedral_list are missing!"
-
+        assert 'bond' in record[0].message.args[0].lower()
     # molecule 2; methanol
     m2 = Molecule()
     m2.elem = ['O', 'H', 'C', 'H', 'H', 'H']
@@ -159,13 +157,11 @@ def test_measure_dihedrals():
                          [-0.419,  1.084, -0.884]])]
     dihedrals = [[1,0,2,3], [1,0,2,4], [1,0,2,5]]
     with pytest.warns(None) as record:
-        dihedral_values = np.array(measure_dihedrals(m2, dihedrals, check_linear=True , check_bonded=True))
+        dihedral_values = measure_dihedrals(m2, dihedrals, check_linear=True , check_bonded=True)
         assert not record.list
         assert len(dihedral_values) == len(dihedrals)
         answers = [180.0, 61.190466239931894, -61.190466239931894]
-        for val, answer in zip(dihedral_values, answers):
-            assert np.allclose(val, answer, atol=1e-6)
-
+        np.testing.assert_allclose(dihedral_values, answers, atol=1e-6)
     # molecule 3; methanol with slightly rotated methyl group
     m3 = Molecule()
     m3.elem = ['O', 'H', 'C', 'H', 'H', 'H']
@@ -176,13 +172,11 @@ def test_measure_dihedrals():
                          [ 0.106,  1.076,  1.008],
                          [-0.805,  1.090, -0.507]])]
     with pytest.warns(None) as record:
-        dihedral_values = np.array(measure_dihedrals(m3, dihedrals, check_linear=True , check_bonded=True))
+        dihedral_values = measure_dihedrals(m3, dihedrals, check_linear=True , check_bonded=True)
         assert not record.list
         assert len(dihedral_values) == len(dihedrals)
         answers = [-148.997437219388, 92.2092401128753, -30.1683461569122]
-        for val, answer in zip(dihedral_values, answers):
-            assert np.allclose(val, answer, atol=1e-6)
-
+        np.testing.assert_allclose(dihedral_values, answers, atol=1e-6)
     # molecule 4; C=C=C=C
     m4 = Molecule()
     m4.elem = ['C', 'C', 'C', 'C', 'H', 'H', 'H', 'H', 'H', 'H']
@@ -198,13 +192,11 @@ def test_measure_dihedrals():
                          [ 4.4985, -2.2344, -1.6606]])]
     dihedrals = [[0,1,2,3], [0,1,2,7], [6,1,2,7]]
     with pytest.warns(None) as record:
-        dihedral_values = np.array(measure_dihedrals(m4, dihedrals, check_linear=True , check_bonded=True))
+        dihedral_values = measure_dihedrals(m4, dihedrals, check_linear=True , check_bonded=True)
         assert not record.list
         assert len(dihedral_values) == len(dihedrals)
         answers = [-179.95906345380854, 0.04886624744276984, -179.94896540856553]
-        for val, answer in zip(dihedral_values, answers):
-            assert np.allclose(val, answer, atol=1e-6)
-
+        np.testing.assert_allclose(dihedral_values, answers, atol=1e-6)
     # molecule 5; a simple ring compound, benzene
     m5 = Molecule()
     m5.elem = ['C', 'C', 'C', 'C', 'C', 'C', 'H', 'H', 'H', 'H', 'H', 'H']
@@ -222,9 +214,8 @@ def test_measure_dihedrals():
                          [-2.4759e+00, -1.3400e-01, -3.5000e-03]])]
     dihedrals = [[6,0,1,7], [5,0,1,7], [6,0,1,2], [5,0,1,2]]
     with pytest.warns(None) as record:
-        dihedral_values = np.array(measure_dihedrals(m5, dihedrals, check_linear=True , check_bonded=True))
+        dihedral_values = measure_dihedrals(m5, dihedrals, check_linear=True , check_bonded=True)
         assert not record.list
         assert len(dihedral_values) == len(dihedrals)
         answers = [-0.1250906915581075, 179.8551830096832, 179.86320790765137, -0.15651839110736443]
-        for val, answer in zip(dihedral_values, answers):
-            assert np.allclose(val, answer, atol=1e-6)
+        np.testing.assert_allclose(dihedral_values, answers, atol=1e-6)

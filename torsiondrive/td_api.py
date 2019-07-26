@@ -10,7 +10,7 @@ import shutil
 from collections import defaultdict
 
 import numpy as np
-from torsiondrive.dihedral_scanner import DihedralScanner, get_geo_key
+from torsiondrive.dihedral_scanner import DihedralScanner, get_geo_key, measure_dihedrals
 from torsiondrive.priority_queue import PriorityQueue
 from torsiondrive.qm_engine import EngineBlank
 from geometric.molecule import Molecule
@@ -247,7 +247,7 @@ def current_state_json_load(json_state_dict):
 
             # here we check if the end_geo matches the target grid id
             m.xyzs = [end_geo]
-            dihedral_values = np.array([m.measure_dihedrals(*d)[0] for d in dihedrals])
+            dihedral_values = measure_dihedrals(m, dihedrals)
             for dv, dref in zip(dihedral_values, grid_id):
                 diff = abs(dv - dref)
                 if min(diff, abs(360 - diff)) > 0.9:
