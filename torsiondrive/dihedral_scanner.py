@@ -12,7 +12,7 @@ import json
 import os
 import pickle
 import time
-
+from warnings import warn
 import numpy as np
 from geometric.molecule import Molecule
 from torsiondrive.priority_queue import PriorityQueue
@@ -29,6 +29,95 @@ def get_geo_key(coords):
     due to the limitation of float point representation.
     """
     return (coords * 1000).astype(int).tobytes()
+
+def norm3(vec3):
+    """
+    Quick convenient function to get the norm of a 3-element vector
+    norm3: 475 ns | np.linalg.norm: 4.31 us
+    """
+    a, b, c = vec3
+    return (a*a + b*b + c*c)**0.5
+
+def cross3(v1, v2):
+    """
+    Quick convenient function to compute cross product betwee two 3-element vectors
+    cross3: 326 ns | np.cross: 35.8 us
+    """
+    a1, a2, a3 = v1
+    b1, b2, b3 = v2
+    return [a2 * b3 - a3 * b2,
+            a3 * b1 - a1 * b3,
+            a1 * b2 - a2 * b1]
+
+def dot3(v1, v2):
+    """
+    Quick convenient function to compute dot product betwee two 3-element vectors
+    dot3: 231 ns | np.dot: 745 ns
+    """
+    a1, a2, a3 = v1
+    b1, b2, b3 = v2
+    return a1*b1 + a2*b2 + a3*b3
+
+
+def measure_dihedrals(molecule, dihedral_list, check_linear=True, check_bonded=True):
+    """
+    Measure dihedral values from molecule coordinates.
+
+    Parameters
+    ----------
+    molecule: geometric.molecule.Molecule
+        The molecule object that contains atom coordinates. Only the first frame will be used.
+    dihedral_list: List[List[Int]]
+        A list of dihedrals to compute their value. Each diedral is represented by a list of tuple of four integers, each is a 0-based atom index.
+    check_linear: Bool
+        If True, will check if i-j-k or j-k-l angles in each dihedral is close to linear ( > 165 degree ), print a warning if found.
+    check_bonded: Bool
+        If True, will check if all i-j, j-k, k-l are bonded for each dihedral, print a warning if not.
+    """
+    assert all(len(d) == 4 for d in dihedral_list), f"Dihedral should have 4 indices. Please check {dihedral_list}"
+    if check_bonded:
+        # collect all bonds needs to be checked from dihedral_list
+        bonds_to_check = set()
+        for i,j,k,l in dihedral_list:
+            for b1, b2 in [(i,j), (j,k), (k,l)]:
+                bonds_to_check.add((b1,b2) if b1 <= b2 else (b2,b1))
+        # build bonds for m if not available
+        if 'bonds' not in molecule.Data:
+            molecule.build_bonds()
+        all_bonds = set((b1,b2) for b1, b2 in molecule.bonds)
+        # check bonds not found
+        bonds_to_check.difference_update(all_bonds)
+        if len(bonds_to_check) > 0:
+            warn(f"Following atom pairs in {dihedral_list} not bonded: {bonds_to_check}", UserWarning)
+    dihedral_values = []
+    rad_2_deg = 180.0 / np.pi
+    for dihedral in dihedral_list:
+        # read coordinates for all dihedrals
+        coords = molecule.xyzs[0].take(dihedral, axis=0)
+        # store the vectors as lists for faster math
+        v1 = (coords[1] - coords[0]).tolist()
+        v2 = (coords[2] - coords[1]).tolist()
+        v3 = (coords[3] - coords[2]).tolist()
+        n2 = norm3(v2) # computed here to use later
+        if check_linear:
+            n1, n3 = norm3(v1), norm3(v3)
+            dist_thresh = 1e-6 # threshold for distance between two atoms
+            if n1 < dist_thresh or n2 < dist_thresh or n3 < dist_thresh:
+                warn(f"Two atoms have same coordinate for dihedral {dihedral}", UserWarning)
+            else:
+                angle_cos_thresh = 0.9659258 # cos(15 degree)
+                # if angle(v1, v2) < 15 degree means i-j-k > 165 degree
+                if dot3(v1, v2) > n1 * n2 * angle_cos_thresh or dot3(v2, v3) > n2 * n3 * angle_cos_thresh:
+                    warn(f"Angle close to straight found in dihedral {dihedral}", UserWarning)
+        # compute dihedral in a stable way
+        c12 = cross3(v1, v2)
+        c23 = cross3(v2, v3)
+        # https://en.wikipedia.org/wiki/Dihedral_angle
+        # v_dihedral = np.arctan2(dot3(cross3(c12, c23), v2) / n2, dot3(c12, c23)) * rad_2_deg
+        # we use the same definition as molecule.measure_dihedrals() for reproducibility
+        v_dihedral = np.arctan2(n2 * dot3(v1, c23), dot3(c12, c23)) * rad_2_deg
+        dihedral_values.append(v_dihedral)
+    return np.array(dihedral_values)
 
 class DihedralScanner:
     """
@@ -166,13 +255,14 @@ class DihedralScanner:
     #--------------------
     #  General methods
     #--------------------
+
     def get_dihedral_id(self, molecule, check_grid_id=None):
         """
         Compute the closest grid ID for molecule (only first frame)
         If check_grid_id is given, will perform a check if the computed dihedral_values are close to the grid_id provided
         If the check is not passed, this function will return None
         """
-        dihedral_values = np.array([molecule.measure_dihedrals(*d)[0] for d in self.dihedrals])
+        dihedral_values = measure_dihedrals(molecule, self.dihedrals)
         if check_grid_id is not None:
             assert len(check_grid_id) == len(dihedral_values), "Grid dimensions should be the same!"
             for dv, dref in zip(dihedral_values, check_grid_id):
