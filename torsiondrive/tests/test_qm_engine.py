@@ -5,7 +5,7 @@ Test for qm_engine module
 import os
 import subprocess
 import pytest
-from torsiondrive.qm_engine import QMEngine, EngineBlank, EnginePsi4, EngineQChem, EngineTerachem, EngineOpenMM, EngineGaussian09, EngineGaussian16
+from torsiondrive.qm_engine import QMEngine, EngineBlank, EnginePsi4, EngineQChem, EngineTerachem, EngineOpenMM
 
 def test_qm_engine():
     """
@@ -38,72 +38,6 @@ def test_engine_blank():
     engine.optimize_native()
     engine.optimize_geomeTRIC()
     engine.load_native_output()
-
-def test_engine_gaussian09_native(tmpdir):
-    """
-        Testing Gaussian
-        """
-    tmpdir.chdir()
-    with open('input.dat', 'w') as g09in:
-        g09in.write("""
-    %Mem=6GB
-    %NProcShared=2
-    %Chk=lig
-    # B3LYP/6-31G(d) Opt=ModRedundant
-
-    HOOH energy
-
-    0 1
-    H  -1.116 -0.681 -0.191
-    O  -0.519  0.008 -0.566
-    O   0.518  0.074  0.561
-    H   1.126 -0.641  0.258
-
-
-    """)
-    engine = EngineGaussian09(input_file='input.dat', native_opt=True)
-    assert hasattr(engine, 'M')
-    engine.set_dihedral_constraints([[0, 1, 2, 3, 90]])
-
-    try:
-        engine.optimize_native()
-        m = engine.load_native_output()
-        assert pytest.approx(-151.5317, 0.0001) == m.qm_energies[0]
-    except subprocess.CalledProcessError:
-        pass
-
-def test_engine_gaussian16_native(tmpdir):
-    """
-        Testing Gaussian
-        """
-    tmpdir.chdir()
-    with open('input.dat', 'w') as g09in:
-        g09in.write("""
-    %Mem=6GB
-    %NProcShared=2
-    %Chk=lig
-    # B3LYP/6-31G(d) Opt=ModRedundant
-
-    HOOH energy
-
-    0 1
-    H  -1.116 -0.681 -0.191
-    O  -0.519  0.008 -0.566
-    O   0.518  0.074  0.561
-    H   1.126 -0.641  0.258
-
-
-    """)
-    engine = EngineGaussian16(input_file='input.dat', native_opt=True)
-    assert hasattr(engine, 'M')
-    engine.set_dihedral_constraints([[0, 1, 2, 3, 90]])
-
-    try:
-        engine.optimize_native()
-        m = engine.load_native_output()
-        assert pytest.approx(-151.5317, 0.0001) == m.qm_energies[0]
-    except subprocess.CalledProcessError:
-        pass
 
 def test_engine_psi4_native(tmpdir):
     """
