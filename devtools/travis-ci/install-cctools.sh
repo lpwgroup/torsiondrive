@@ -3,7 +3,7 @@
 # Download latest version from website.
 echo "Downloading source."
 version="7.0.14"
-cctools="cctools-$version"
+cctools="cctools/$version"
 rm -rf cctools*
 wget https://github.com/lpwgroup/cctools/archive/v${version}.tar.gz
 echo "Extracting archive."
@@ -93,7 +93,7 @@ PYTHON_SITEPACKAGES=`python -c "import site; print(site.getsitepackages()[0])"`
 PNAME=$(basename $(dirname $PYTHON_SITEPACKAGES))
 echo "Before installing Python module, will remove these files"
 echo "from $PYTHON_SITEPACKAGES"
-ls $PYTHON_SITEPACKAGES/*work_queue*
 rm -f $PYTHON_SITEPACKAGES/*work_queue*
-cp -r $prefix/cctools/lib/$PNAME/site-packages/* $PYTHON_SITEPACKAGES
+cp -r $prefix/$cctools/lib/$PNAME/site-packages/* $PYTHON_SITEPACKAGES
+ls $PYTHON_SITEPACKAGES/*work_queue*
 echo "Python module installed"
