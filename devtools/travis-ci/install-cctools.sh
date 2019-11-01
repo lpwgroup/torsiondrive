@@ -3,8 +3,8 @@
 # Download latest version from website.
 echo "Downloading source."
 version="7.0.14"
-cctools="cctools/$version"
-rm -rf cctools*
+echo rm -rI cctools* v${version}.tar.gz*
+rm -rI cctools* v${version}.tar.gz*
 wget https://github.com/lpwgroup/cctools/archive/v${version}.tar.gz
 echo "Extracting archive."
 tar xzf v${version}.tar.gz
@@ -32,7 +32,7 @@ sed -i s/"config_globus_path=auto"/"config_globus_path=no"/g configure
 # versions of Python and Swig since the version
 # installed for the OS might be too old.
 #----
-prefix=$HOME/opt
+prefix=$HOME/opt/cctools
 swgpath=$(dirname $(dirname $(which swig)))
 pypath=$(dirname $(dirname $(which python)))
 
@@ -65,35 +65,42 @@ fi
 PYTHON_VERSION=`python -c 'import sys; print(sys.version_info[0])'`
 if [ "$PYTHON_VERSION" -eq "3" ]
 then
-    ./configure --prefix $prefix/$cctools --with-python3-path $pypath --with-python-path no --with-swig-path $swgpath --with-perl-path no --with-globus-path no
+    ./configure --prefix $prefix/$version --with-python3-path $pypath --with-python-path no --with-swig-path $swgpath --with-perl-path no --with-globus-path no
 else
-    ./configure --prefix $prefix/$cctools --with-python-path $pypath --with-swig-path $swgpath
+    ./configure --prefix $prefix/$version --with-python-path $pypath --with-swig-path $swgpath
 fi
 make && make install && cd work_queue && make install
 
 #----
-# Make symbolic link from installed version to plain "cctools" folder.
-# This allows you to add $HOME/cctools/bin to your PATH.
+# Make symbolic link from installed version, i.e. $HOME/opt/cctools/<version> to $HOME/opt/cctools/current folder.
+# This allows you to add $HOME/opt/cctools/current/bin to your PATH.
 #----
 cd $prefix/
-rm -f cctools
-ln -s $cctools cctools
-cd cctools/bin
-for i in wq_submit_workers.common sge_submit_workers torque_submit_workers slurm_submit_workers ; do
-    if [ -f $HOME/etc/work_queue/$i ] ; then
-        echo "Replacing $i with LP's custom version"
-        mv $i $i.bak
-        ln -s $HOME/etc/work_queue/$i .
-    fi
-done
-cd ../..
+echo rm -I current
+rm -I current
+ln -s $version current
+
+# Commented out; these used to copy over some customized submission scripts
+# cd current/bin
+# for i in wq_submit_workers.common sge_submit_workers torque_submit_workers slurm_submit_workers ; do
+#     if [ -f $HOME/etc/work_queue/$i ] ; then
+#         echo "Replacing $i with LP's custom version"
+#         mv $i $i.bak
+#         ln -s $HOME/etc/work_queue/$i .
+#     fi
+# done
+# cd ../..
 
 # Install Python module.
 PYTHON_SITEPACKAGES=`python -c "import site; print(site.getsitepackages()[0])"`
 PNAME=$(basename $(dirname $PYTHON_SITEPACKAGES))
-echo "Before installing Python module, will remove these files"
-echo "from $PYTHON_SITEPACKAGES"
-rm -f $PYTHON_SITEPACKAGES/*work_queue*
-cp -r $prefix/$cctools/lib/$PNAME/site-packages/* $PYTHON_SITEPACKAGES
-ls $PYTHON_SITEPACKAGES/*work_queue*
-echo "Python module installed"
+
+echo "Removing existing Work Queue files from $PYTHON_SITEPACKAGES."
+echo rm -I $PYTHON_SITEPACKAGES/*work_queue*
+rm -I $PYTHON_SITEPACKAGES/*work_queue*
+
+echo "Installing Python module"
+cp -r $prefix/$version/lib/$PNAME/site-packages/* $PYTHON_SITEPACKAGES
+
+echo "Python module installed into $PYTHON_SITEPACKAGES:"
+ls -ltr $PYTHON_SITEPACKAGES/*work_queue*
