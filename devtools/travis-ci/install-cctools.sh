@@ -1,12 +1,60 @@
 #!/bin/bash
 
+#=======================================#
+#| Step 1 : Before downloading package |#
+#=======================================#
+
+#----
+# Provide install prefix for cctools as well as
+# locations of Swig and Python packages (i.e. the
+# executable itself is inside the bin subdirectory).
+#
+# This is to ensure that we can call the correct
+# versions of Python and Swig since the version
+# installed for the OS might be too old.
+#----
+if [[ x$(which swig) == x || x$(which python) == x ]] ; then
+    echo "Installation cannot continue because python or swig executables cannot be found"
+    echo "Please install these packages first."
+    exit
+fi
+
+swgpath=$(dirname $(dirname $(which swig)))
+pypath=$(dirname $(dirname $(which python)))
+
+PYTHON_SITEPACKAGES=`python -c "import site; print(site.getsitepackages()[0])"`
+if [[ "$PYTHON_SITEPACKAGES" != "$HOME"* ]]; then
+    echo "Python sitepackages appears to be $PYTHON_SITEPACKAGES which does not contain $HOME"
+    echo "Please make sure your Python site_packages folder is in your home folder and try again."
+    echo "If you are using the system Python, consider installing Python into your home folder."
+    exit
+fi
+
+#=======================================#
+#| Step 2 : Download package, extract, |#
+#|          modify some source codes   |#
+#=======================================#
+
+# Delete existing Python module.
+echo "== Deleting existing Python module =="
+rm -fv $PYTHON_SITEPACKAGES/work_queue* $PYTHON_SITEPACKAGES/_work_queue*
+
+# Create the prefix folder and remove previous "current" symlink.
+prefix=$HOME/opt/cctools
+mkdir -p $prefix
+echo "== Deleting existing $HOME/opt/cctools/current symlink =="
+rm -fv $prefix/current
+
 # Download latest version from website.
-echo "Downloading source."
+echo "== Downloading source. =="
 version="7.0.14"
-echo rm -rI cctools* v${version}.tar.gz*
-rm -rI cctools* v${version}.tar.gz*
+
+# Delete existing archives and extracted folders.
+echo "== Deleting existing source code archive and extracted folders =="
+rm -rfv cctools-${version} v${version}.tar.gz*
+
 wget https://github.com/lpwgroup/cctools/archive/v${version}.tar.gz
-echo "Extracting archive."
+echo "== Extracting archive. =="
 tar xzf v${version}.tar.gz
 cd cctools-${version}
 
@@ -23,84 +71,39 @@ sed -i s/"config_perl_path=auto"/"config_perl_path=no"/g configure
 # Disable globus
 sed -i s/"config_globus_path=auto"/"config_globus_path=no"/g configure
 
-#----
-# Provide install prefix for cctools as well as
-# locations of Swig and Python packages (i.e. the
-# executable itself is inside the bin subdirectory).
-#
-# This is to ensure that we can call the correct
-# versions of Python and Swig since the version
-# installed for the OS might be too old.
-#----
-prefix=$HOME/opt/cctools
-swgpath=$(dirname $(dirname $(which swig)))
-pypath=$(dirname $(dirname $(which python)))
+#=======================================#
+#| Step 3 : Build and install library  |#
+#=======================================#
 
-# Create these directories if they don't exist.
-mkdir -p $prefix
-mkdir -p $swgpath
-mkdir -p $pypath
-
-if [ ! -d $prefix ] ; then
-    echo "Warning: Installation directory $prefix does not exist."
-    read
-fi
-
-if [ ! -f $swgpath/bin/swig ] ; then
-    echo "Warning: $swgpath does not point to Swig."
-    read
-fi
-
-if [ ! -f $pypath/bin/python ] ; then
-    echo "Warning: $pypath does not point to Python."
-    read
-fi
-
-#----
-# The following assumes that cctools will be installed into $HOME/opt
-# and Python lives in $HOME/local.
-#----
-# Configure, make, make install.
-# check python version
+# Configure script depends on the Python version.
 PYTHON_VERSION=`python -c 'import sys; print(sys.version_info[0])'`
 if [ "$PYTHON_VERSION" -eq "3" ]
 then
+    echo "== Configuring for Python 3 =="
     ./configure --prefix $prefix/$version --with-python3-path $pypath --with-python-path no --with-swig-path $swgpath --with-perl-path no --with-globus-path no
 else
+    echo "== Configuring for Python 2 =="
     ./configure --prefix $prefix/$version --with-python-path $pypath --with-swig-path $swgpath
 fi
+echo "== Compilation and installation =="
 make && make install && cd work_queue && make install
+echo "== Work Queue library installed =="
 
 #----
 # Make symbolic link from installed version, i.e. $HOME/opt/cctools/<version> to $HOME/opt/cctools/current folder.
 # This allows you to add $HOME/opt/cctools/current/bin to your PATH.
 #----
 cd $prefix/
-echo rm -I current
-rm -I current
 ln -s $version current
 
-# Commented out; these used to copy over some customized submission scripts
-# cd current/bin
-# for i in wq_submit_workers.common sge_submit_workers torque_submit_workers slurm_submit_workers ; do
-#     if [ -f $HOME/etc/work_queue/$i ] ; then
-#         echo "Replacing $i with LP's custom version"
-#         mv $i $i.bak
-#         ln -s $HOME/etc/work_queue/$i .
-#     fi
-# done
-# cd ../..
+#=======================================#
+#| Step 4 : Install Python module      |#
+#=======================================#
 
-# Install Python module.
-PYTHON_SITEPACKAGES=`python -c "import site; print(site.getsitepackages()[0])"`
 PNAME=$(basename $(dirname $PYTHON_SITEPACKAGES))
 
-echo "Removing existing Work Queue files from $PYTHON_SITEPACKAGES."
-echo rm -I $PYTHON_SITEPACKAGES/*work_queue*
-rm -I $PYTHON_SITEPACKAGES/*work_queue*
-
-echo "Installing Python module"
+echo "== Installing Python module =="
 cp -r $prefix/$version/lib/$PNAME/site-packages/* $PYTHON_SITEPACKAGES
 
-echo "Python module installed into $PYTHON_SITEPACKAGES:"
+echo "== Python module installed into $PYTHON_SITEPACKAGES: =="
 ls -ltr $PYTHON_SITEPACKAGES/*work_queue*
