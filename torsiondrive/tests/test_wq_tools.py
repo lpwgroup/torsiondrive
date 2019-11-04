@@ -19,7 +19,7 @@ def test_work_queue():
     wq.submit('echo test > test.txt', [], ['test.txt'])
     assert wq.get_queue_status() == (0,0,0,1)
     # submit a worker
-    p = subprocess.Popen("$HOME/opt/cctools/bin/work_queue_worker localhost 56789 -t 1", shell=True, stderr=subprocess.DEVNULL)
+    p = subprocess.Popen("$HOME/opt/cctools/current/bin/work_queue_worker localhost 56789 -t 1", shell=True, stderr=subprocess.DEVNULL)
     for _ in range(10):
         path = wq.check_finished_task_path()
         if path is not None:
