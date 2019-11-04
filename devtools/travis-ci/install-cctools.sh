@@ -16,7 +16,8 @@
 if [[ x$(which swig) == x || x$(which python) == x ]] ; then
     echo "Installation cannot continue because python or swig executables cannot be found"
     echo "Please install these packages first."
-    exit
+    echo "Press Enter to continue or Ctrl-C to quit"
+    read
 fi
 
 swgpath=$(dirname $(dirname $(which swig)))
@@ -27,8 +28,18 @@ if [[ "$PYTHON_SITEPACKAGES" != "$HOME"* ]]; then
     echo "Python sitepackages appears to be $PYTHON_SITEPACKAGES which does not contain $HOME"
     echo "Please make sure your Python site_packages folder is in your home folder and try again."
     echo "If you are using the system Python, consider installing Python into your home folder."
-    exit
+    echo "Press Enter to continue or Ctrl-C to quit"
+    read
 fi
+
+if [ ! -f /usr/include/zlib.h ]; then
+    echo "Warning: /usr/include/zlib.h not found, compilation may fail."
+    echo "  You may install by running sudo apt-get install zlib1g-dev on Ubuntu Linux"
+    echo "  or a corresponding command on your operating system."
+    echo "Press Enter to continue or Ctrl-C to quit"
+    read
+fi
+
 
 #=======================================#
 #| Step 2 : Download package, extract, |#
