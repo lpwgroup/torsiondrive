@@ -432,7 +432,7 @@ class EngineGaussian(QMEngine):
         2. run the job
         """
         assert self.temp_type == 'optimize', "To use native optimization, the input file be an opt job"
-        assert hasattr(self, 'gaussian_version'), 'The version of gaussian could not be determined!'
+        assert hasattr(self, 'gaussian_exe'), 'The version of gaussian could not be determined!'
         if self.extra_constraints is not None:
             raise RuntimeError('extra constraints not supported in Gaussian native optimizations')
         self.optblockStr =''
