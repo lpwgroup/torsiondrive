@@ -404,7 +404,7 @@ class EngineGaussian(QMEngine):
         # step 2
         self.write_input('input.com')
         # step 3
-        cmd = 'geometric-optimize --prefix tdrive --qccnv --reset --epsilon 0.0 --enforce 0.1 --qdata --engine gaussian input.com constraints.txt'
+        cmd = 'geometric-optimize --prefix tdrive --qccnv yes --reset yes --epsilon 0.0 --enforce 0.1 --qdata yes --engine gaussian input.com constraints.txt'
         self.run(cmd, input_files=['input.com', 'constraints.txt'],
                  output_files=['tdrive.log', 'tdrive.xyz', 'qdata.txt'])
 
