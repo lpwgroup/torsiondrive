@@ -327,6 +327,167 @@ class EnginePsi4(QMEngine):
         m.build_topology()
         return m
 
+class EngineGaussian(QMEngine):
+    def __init__(self, input_file=None, work_queue=None, native_opt=False, extra_constraints=None, exe=None):
+        super().__init__(input_file, work_queue, native_opt, extra_constraints)
+        # Check which version of gaussain we have access to
+        if exe.lower() in ("g09", "g16"):
+            self.gaussian_exe = exe.lower()
+        else:
+            raise ValueError("Only g16 and g09 are supported.")
+
+    def load_input(self, input_file):
+        """
+        !!!only Cartesian molecule specification is supported at the moment!!!
+        Load Gaussian09 input file, note blank lines at the bottom of the file are required
+        Example input file:
+
+        %Mem=6GB
+        %NProcShared=2
+        %Chk=lig
+        # B3LYP/6-31G(d) Opt=ModRedundant
+
+        water energy
+
+        0   1
+        O  -0.464   0.177   0.0
+        H  -0.464   1.137   0.0
+        H   0.441  -0.143   0.0
+
+
+        """
+        elems, coords = [], []
+        reading_molecule, found_geo = False, False
+        gauss_temp = []  # store a template of the input file for generating new ones
+        with open(input_file) as gauss_in:
+            for line in gauss_in:
+                ls = line.split()
+                if len(ls) == 4 and check_all_float(ls[1:]):
+                    reading_molecule = True
+                    elems.append(ls[0])
+                    coords.append(ls[1:])
+                    if not found_geo:
+                        found_geo = True
+                        gauss_temp.append("$!geometry@here")
+
+                elif reading_molecule:
+                    if line.strip() == '':
+                        reading_molecule = False
+                        gauss_temp.append(line)
+                        gauss_temp.append("$!optblock@here")
+
+                else:
+                    gauss_temp.append(line)
+
+                if 'opt' in line.lower() and 'modredundant' in line.lower():
+                    self.temp_type = 'optimize'
+                elif "force=nostep" in line.lower():
+                    self.temp_type = "gradient"
+        assert found_geo, "XYZ geometry not found in molecule block of %s" % input_file
+        if self.native_opt:
+            assert self.temp_type == 'optimize', "input_file should be a opt job to use native opt"
+        self.gauss_temp = gauss_temp
+        self.M = Molecule()
+        self.M.elem = elems
+        self.M.xyzs = [np.array(coords, dtype=float)]
+        self.M.build_topology()
+
+    def optimize_geomeTRIC(self):
+        """ run the constrained optimization using geomeTRIC package, in 3 steps:
+        1. Write a constraints.txt file.
+        2. Write a gradient job input file.
+        3. Run the job
+        """
+        assert self.temp_type == 'gradient', "To use geomeTRIC package, the input file should have Force=NoStep in it"
+        # step 1
+        self.write_constraints_txt()
+        # step 2
+        self.write_input('input.com')
+        # step 3
+        cmd = 'geometric-optimize --prefix tdrive --qccnv --reset --epsilon 0.0 --enforce 0.1 --qdata --engine gaussian input.com constraints.txt'
+        self.run(cmd, input_files=['input.com', 'constraints.txt'],
+                 output_files=['tdrive.log', 'tdrive.xyz', 'qdata.txt'])
+
+    def write_input(self, filename='gaussian.com'):
+        """ Write Gaussian input using Molecule Class """
+        assert hasattr(self, 'gauss_temp'), "self.gauss_temp not set, call load_input() first"
+        with open(filename, 'w') as outfile:
+            for line in self.gauss_temp:
+                if line == '$!geometry@here':
+                    for e, c in zip(self.M.elem, self.M.xyzs[0]):
+                        outfile.write("%-7s %13.7f %13.7f %13.7f\n" % (e, c[0], c[1], c[2]))
+
+                elif line == "$!optblock@here":
+                    if hasattr(self, 'optblockStr'):
+                        # self.optblockStr will be set by self.optimize_native()
+                        outfile.write(self.optblockStr)
+
+                else:
+                    outfile.write(line)
+
+    def optimize_native(self):
+        """
+        Run the constrained optimization, following Gaussian09 manual.
+        1. write a optimization job input file.
+        2. run the job
+        """
+        assert self.temp_type == 'optimize', "To use native optimization, the input file be an opt job"
+        assert hasattr(self, 'gaussian_version'), 'The version of gaussian could not be determined!'
+        if self.extra_constraints is not None:
+            raise RuntimeError('extra constraints not supported in Gaussian native optimizations')
+        self.optblockStr =''
+        for d1, d2, d3, d4, v in self.dihedral_idx_values:
+            self.optblockStr += f'{d1 + 1} {d2 + 1} {d3 + 1} {d4 + 1} ={v:.3f} B\n'  # Build the angle
+            self.optblockStr += f'{d1 + 1} {d2 + 1} {d3 + 1} {d4 + 1} F\n'           # Freeze the angle
+        # write input file
+        self.write_input('gaussian.com')
+        # run the job
+        self.run(f'{self.gaussian_exe} < gaussian.com > gaussian.log && formchk lig.chk lig.fchk', input_files=['gaussian.com'],
+                 output_files=['gaussian.log', 'lig.fchk'])
+
+    def load_native_output(self, filename='lig.fchk', filename2='gaussian.log'):
+        """ Load the optimized geometry and energy into a new molecule object and return """
+        # Check the log file to see if the optimization was successful
+        opt_result = False
+        final_energy, elems, coords = None, [], []
+        with open(filename2) as logfile:
+            for line in logfile:
+                if 'Optimization completed.' in line:
+                    opt_result = True
+                    break
+
+        if opt_result is not True:
+            raise RuntimeError("Geometry optimization failed in %s" % filename2)
+
+        # Now we want to get the optimized structure from the fchk file as this is more reliable
+        end_xyz_pos = None
+        with open(filename) as outfile:
+            for i, line in enumerate(outfile):
+                if 'Current cartesian coordinates' in line:
+                    num_xyz = int(line.split()[5])
+                    end_xyz_pos = int(np.ceil(num_xyz/5)+i+1)
+                elif end_xyz_pos is not None and i < end_xyz_pos:
+                    coords.extend([float(num) * 0.529177 for num in line.strip('\n').split()])
+                elif 'Total Energy' in line:
+                    final_energy = float(line.split()[3])
+
+        if end_xyz_pos is None:
+            raise RuntimeError('Cannot locate coordinates in lig.fchk file.')
+
+        # Make sure we have all of the coordinates
+        assert len(coords) == num_xyz, "Could not extract the optimised geometry"
+
+        if final_energy is None:
+            raise RuntimeError("Final energy not found in %s" % filename)
+        if len(coords) == 0:
+            raise RuntimeError("Final geometry not found in %s" % filename)
+        m = Molecule()
+        m.elem = self.M.elem
+        m.xyzs = [np.reshape(coords, (int(len(m.elem)), 3))]
+        m.qm_energies = [final_energy]
+        m.build_topology()
+        return m
+
 
 class EngineQChem(QMEngine):
     def load_input(self, input_file):
