@@ -356,7 +356,6 @@ class EngineGaussian(QMEngine):
 
 
         """
-        elems, coords = [], []
         reading_molecule, found_geo = False, False
         gauss_temp = []  # store a template of the input file for generating new ones
         with open(input_file) as gauss_in:
@@ -364,8 +363,6 @@ class EngineGaussian(QMEngine):
                 ls = line.split()
                 if len(ls) == 4 and check_all_float(ls[1:]):
                     reading_molecule = True
-                    elems.append(ls[0])
-                    coords.append(ls[1:])
                     if not found_geo:
                         found_geo = True
                         gauss_temp.append("$!geometry@here")
@@ -376,21 +373,26 @@ class EngineGaussian(QMEngine):
                         gauss_temp.append(line)
                         gauss_temp.append("$!optblock@here")
 
+                elif "%chk" in line.lower():
+                    # we need to overwrite the input to make the name consistent
+                    gauss_temp.append("%Chk=ligand\n")
+
                 else:
                     gauss_temp.append(line)
 
-                if 'opt' in line.lower() and 'modredundant' in line.lower():
+                if 'opt=modredundant' in line.lower():
                     self.temp_type = 'optimize'
                 elif "force=nostep" in line.lower():
                     self.temp_type = "gradient"
         assert found_geo, "XYZ geometry not found in molecule block of %s" % input_file
         if self.native_opt:
-            assert self.temp_type == 'optimize', "input_file should be a opt job to use native opt"
+            assert self.temp_type == 'optimize', "input_file should be a opt job to use native opt include the Opt=ModRedundant flag"
+        # make sure the checkpoint file name is included
+        if not any("%chk" in command.lower() for command in gauss_temp):
+            gauss_temp.insert(0, "%Chk=ligand\n")
+
         self.gauss_temp = gauss_temp
-        self.M = Molecule()
-        self.M.elem = elems
-        self.M.xyzs = [np.array(coords, dtype=float)]
-        self.M.build_topology()
+        self.M = Molecule(input_file)
 
     def optimize_geomeTRIC(self):
         """ run the constrained optimization using geomeTRIC package, in 3 steps:
@@ -431,21 +433,21 @@ class EngineGaussian(QMEngine):
         1. write a optimization job input file.
         2. run the job
         """
-        assert self.temp_type == 'optimize', "To use native optimization, the input file be an opt job"
+        assert self.temp_type == 'optimize', "To use native optimization, the input file must be an opt job"
         assert hasattr(self, 'gaussian_exe'), 'The version of gaussian could not be determined!'
         if self.extra_constraints is not None:
             raise RuntimeError('extra constraints not supported in Gaussian native optimizations')
         self.optblockStr =''
         for d1, d2, d3, d4, v in self.dihedral_idx_values:
             self.optblockStr += f'{d1 + 1} {d2 + 1} {d3 + 1} {d4 + 1} ={v:.3f} B\n'  # Build the angle
-            self.optblockStr += f'{d1 + 1} {d2 + 1} {d3 + 1} {d4 + 1} F\n'           # Freeze the angle
+            self.optblockStr += f'{d1 + 1} {d2 + 1} {d3 + 1} {d4 + 1} F\n\n'           # Freeze the angle
         # write input file
         self.write_input('gaussian.com')
         # run the job
-        self.run(f'{self.gaussian_exe} < gaussian.com > gaussian.log && formchk lig.chk lig.fchk', input_files=['gaussian.com'],
-                 output_files=['gaussian.log', 'lig.fchk'])
+        self.run(f'{self.gaussian_exe} < gaussian.com > gaussian.log && formchk ligand.chk ligand.fchk', input_files=['gaussian.com'],
+                 output_files=['gaussian.log', 'ligand.fchk'])
 
-    def load_native_output(self, filename='lig.fchk', filename2='gaussian.log'):
+    def load_native_output(self, filename='ligand.fchk', filename2='gaussian.log'):
         """ Load the optimized geometry and energy into a new molecule object and return """
         # Check the log file to see if the optimization was successful
         opt_result = False
@@ -456,7 +458,7 @@ class EngineGaussian(QMEngine):
                     opt_result = True
                     break
 
-        if opt_result is not True:
+        if not opt_result:
             raise RuntimeError("Geometry optimization failed in %s" % filename2)
 
         # Now we want to get the optimized structure from the fchk file as this is more reliable
@@ -472,15 +474,14 @@ class EngineGaussian(QMEngine):
                     final_energy = float(line.split()[3])
 
         if end_xyz_pos is None:
-            raise RuntimeError('Cannot locate coordinates in lig.fchk file.')
+            raise RuntimeError('Cannot locate coordinates in ligand.fchk file.')
 
         # Make sure we have all of the coordinates
         assert len(coords) == num_xyz, "Could not extract the optimised geometry"
 
         if final_energy is None:
             raise RuntimeError("Final energy not found in %s" % filename)
-        if len(coords) == 0:
-            raise RuntimeError("Final geometry not found in %s" % filename)
+
         m = Molecule()
         m.elem = self.M.elem
         m.xyzs = [np.reshape(coords, (int(len(m.elem)), 3))]
