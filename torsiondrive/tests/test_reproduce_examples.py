@@ -11,6 +11,7 @@ import filecmp
 import json
 import numpy as np
 from torsiondrive.dihedral_scanner import DihedralScanner
+from torsiondrive.qm_engine import EngineGaussian
 
 @pytest.fixture(scope="module")
 def example_path(tmpdir_factory):
@@ -57,6 +58,26 @@ def test_reproduce_1D_examples(example_path):
     shutil.copy('scan.xyz', 'orig_scan.xyz')
     dihedral_idxs, dihedral_ranges = launch.load_dihedralfile('dihedrals.txt')
     engine = launch.create_engine('qchem', inputfile='qc.in')
+    scanner = DihedralScanner(engine, dihedrals=dihedral_idxs, grid_spacing=[15], verbose=True)
+    scanner.master()
+    assert filecmp.cmp('scan.xyz', 'orig_scan.xyz')
+    # reproduce Gaussian local native_opt
+    os.chdir(example_path)
+    os.chdir('hooh-1d/gaussian/run_local/native_opt')
+    subprocess.run('tar zxf opt_tmp.tar.gz', shell=True, check=True)
+    shutil.copy('scan.xyz', 'orig_scan.xyz')
+    dihedral_idxs, dihedral_ranges = launch.load_dihedralfile('dihedrals.txt')
+    engine = EngineGaussian(input_file="input.com", native_opt=True, exe="g09")
+    scanner = DihedralScanner(engine, dihedrals=dihedral_idxs, grid_spacing=[15], verbose=True)
+    scanner.master()
+    assert filecmp.cmp('scan.xyz', 'orig_scan.xyz')
+    # reproduce Gaussian local geometric
+    os.chdir(example_path)
+    os.chdir('hooh-1d/gaussian/run_local/geomeTRIC')
+    subprocess.run('tar zxf opt_tmp.tar.gz', shell=True, check=True)
+    shutil.copy('scan.xyz', 'orig_scan.xyz')
+    dihedral_idxs, dihedral_ranges = launch.load_dihedralfile('dihedrals.txt')
+    engine = EngineGaussian(input_file="input.com", native_opt=False, exe="g09")
     scanner = DihedralScanner(engine, dihedrals=dihedral_idxs, grid_spacing=[15], verbose=True)
     scanner.master()
     assert filecmp.cmp('scan.xyz', 'orig_scan.xyz')
