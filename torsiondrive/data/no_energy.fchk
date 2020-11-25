@@ -1,0 +1,23 @@
+hooh
+FOpt      RHF                                                         6-31G(d)
+Number of atoms                            I                4
+Info1-9                                    I   N=           9
+          19          16           0           0           0         110
+           2           1           2
+Charge                                     I                0
+Multiplicity                               I                1
+Number of electrons                        I               18
+Number of alpha electrons                  I                9
+Number of beta electrons                   I                9
+Number of basis functions                  I               34
+Number of independent functions            I               34
+Number of point charges in /Mol/           I                0
+Number of translation vectors              I                0
+Atomic numbers                             I   N=           4
+           1           8           8           1
+Nuclear charges                            R   N=           4
+  1.00000000E+00  8.00000000E+00  8.00000000E+00  1.00000000E+00
+Current cartesian coordinates              R   N=          12
+  1.87565221E+00  1.09872301E+00  9.91258098E-01  1.30414442E+00 -1.37340269E-01
+ -1.78206149E-01 -1.30414462E+00 -1.37341407E-01  1.78205245E-01 -1.87565061E+00
+  1.09873039E+00 -9.91250868E-01

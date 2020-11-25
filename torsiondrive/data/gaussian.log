@@ -1,0 +1,16 @@
+Optimization completed.
+-- Stationary point found.
+                       ----------------------------
+                       !   Optimized Parameters   !
+                       ! (Angstroms and Degrees)  !
+--------------------------                            --------------------------
+! Name  Definition              Value          Derivative Info.                !
+--------------------------------------------------------------------------------
+! R1    R(1,2)                  0.9499         -DE/DX =    0.0                 !
+! R2    R(2,3)                  1.3931         -DE/DX =   -0.0001              !
+! R3    R(3,4)                  0.9499         -DE/DX =    0.0                 !
+! A1    A(1,2,3)              103.1351         -DE/DX =    0.0                 !
+! A2    A(2,3,4)              103.135          -DE/DX =    0.0                 !
+! D1    D(1,2,3,4)             90.0            -DE/DX =    0.0054              !
+--------------------------------------------------------------------------------
+GradGradGradGradGradGradGradGradGradGradGradGradGradGradGradGradGradGrad

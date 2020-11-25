@@ -5,7 +5,37 @@ Test for qm_engine module
 import os
 import subprocess
 import pytest
-from torsiondrive.qm_engine import QMEngine, EngineBlank, EnginePsi4, EngineQChem, EngineTerachem, EngineOpenMM
+from pkg_resources import resource_filename
+import shutil
+import numpy as np
+
+from torsiondrive.launch import create_engine
+from torsiondrive.qm_engine import QMEngine, EngineBlank, EnginePsi4, EngineQChem, EngineTerachem, EngineOpenMM, EngineGaussian
+from geometric.molecule import Molecule
+
+
+def get_data(relative_path):
+    """
+    Get the file path to some data in the torsiondrive package.
+    """
+    fn = resource_filename("torsiondrive", os.path.join("data", relative_path))
+
+    if not os.path.exists(fn):
+        raise ValueError("The file %s can not be found. If you just added it re-install the package."%relative_path)
+    return fn
+
+
+def get_gaussian_version():
+    """
+    Work out if gaussian is available if so return the version else None.
+    """
+    if shutil.which("g09") is not None:
+        return "g09"
+    elif shutil.which("g16") is not None:
+        return "g16"
+    else:
+        return None
+
 
 def test_qm_engine():
     """
@@ -316,3 +346,206 @@ def test_engine_terachem_geometric(tmpdir):
         assert pytest.approx(-151.5334, 0.0001) == m.qm_energies[0]
     except subprocess.CalledProcessError:
         pass
+
+
+def test_gaussian_version_wrong():
+    """
+    Test loading an engine with an incorrect version.
+    """
+    with pytest.raises(ValueError):
+        _ = EngineGaussian(input_file=None, exe="gaussian09")
+
+
+@pytest.mark.parametrize("version", [
+    pytest.param("G09", id="G09"),
+    pytest.param("G16", id="G16"),
+])
+def test_gaussian_correct_version(version):
+    """
+    Check that allowed versions do not raise errors.
+    """
+    engine = EngineGaussian(input_file=None, exe=version)
+
+    assert engine.gaussian_exe == version.lower()
+
+
+def test_find_gaussian_missing():
+    """
+    Make sure an error is raised if gaussian 09/16 is not available.
+    """
+
+    with pytest.raises(RuntimeError):
+        _ = create_engine("gaussian", inputfile=get_data("hooh_native.com"))
+
+
+def test_gaussian_load_native():
+    """
+    Load in a gaussian native input and validate it.
+    Note it has no checkpoint name so make sure it is added
+    """
+    engine = EngineGaussian(input_file=get_data("hooh_native.com"), exe="g09", native_opt=True)
+    assert engine.temp_type == "optimize"
+    assert "%Chk=ligand\n" in engine.gauss_temp
+    assert engine.gauss_temp == ['%Chk=ligand\n', '%Mem=6GB\n', '%NProcShared=2\n', '# HF/6-31G(d) Opt=ModRedundant\n', '\n', 'hooh\n', '\n', '0 1\n', '$!geometry@here', '\n', '$!optblock@here']
+
+
+def test_gaussian_load_geometric():
+    """
+    Load in a gaussian geometric input and validate it.
+    """
+    # we expect an error here as we have passed the wrong job flag for geometric
+    with pytest.raises(AssertionError):
+        engine = EngineGaussian(input_file=get_data("hooh_geometric.com"), exe="g09", native_opt=True)
+
+    # try again with the coorect flag
+    engine = EngineGaussian(input_file=get_data("hooh_geometric.com"), exe="g09", native_opt=False)
+    assert engine.temp_type == "gradient"
+    # check the checkpoint file was also included
+    assert "%Chk=ligand\n" in engine.gauss_temp
+    assert engine.gauss_temp == ['%Chk=ligand\n', '%Mem=6GB\n', '%NProcShared=2\n', '# HF/6-31G(d) Force=NoStep\n', '\n', 'hooh\n', '\n', '0 1\n', '$!geometry@here', '\n', '$!optblock@here']
+
+
+def test_gaussian_load_bad_checkpoint():
+    """
+    Make sure that loading an input file with a bad checkpoint name is corrected.
+    """
+    engine = EngineGaussian(input_file=get_data("hooh_bad.com"), exe="g09", native_opt=False)
+    assert "%Chk=ligand\n" in engine.gauss_temp
+
+
+def test_gaussian_write_native(tmpdir):
+    """
+    Test writing new gaussian native optimization files.
+    """
+    tmpdir.chdir()
+    engine = EngineGaussian(input_file=get_data("hooh_native.com"), exe="g09", native_opt=True)
+    # set the dihedral to be scanned and the value
+    engine.set_dihedral_constraints([[0, 1, 2, 3, 90]])
+
+    # check if gaussian can be ran else expect an error
+    g_version = get_gaussian_version()
+    if g_version is None:
+        with pytest.raises(subprocess.CalledProcessError):
+            engine.optimize_native()
+
+    else:
+        engine.gaussian_exe = g_version
+        engine.optimize_native()
+
+    # now we need to check the input file
+    # for the frozen dihedral
+    with open("gaussian.com") as com:
+        lines = com.readlines()
+        assert "1 2 3 4 =90.000 B\n" in lines
+        assert "1 2 3 4 F\n" in lines
+        assert "%Chk=ligand\n" in lines
+
+    # make sure the molecule is the same
+    molecule = Molecule("gaussian.com")
+    assert molecule.Data["bonds"] == engine.M.Data["bonds"]
+    assert molecule.Data["elem"] == engine.M.Data["elem"]
+    assert molecule.Data["charge"] == engine.M.Data["charge"]
+    assert molecule.Data["mult"] == engine.M.Data["mult"]
+    assert len(molecule.molecules) == len(engine.M.molecules)
+    assert np.allclose(molecule.xyzs[0], engine.M.xyzs[0])
+
+
+def test_gaussian_write_geometric(tmpdir):
+    """
+    Test writing out new gaussian style geometric files.
+    """
+    tmpdir.chdir()
+    engine = EngineGaussian(input_file=get_data("hooh_geometric.com"), exe="g09", native_opt=False)
+    # set the dihedral to be scanned and the value
+    engine.set_dihedral_constraints([[0, 1, 2, 3, 90]])
+
+    # check if gaussian can be ran else expect an error
+    g_version = get_gaussian_version()
+    if g_version is None:
+        with pytest.raises(subprocess.CalledProcessError):
+            engine.optimize_geomeTRIC()
+
+    else:
+        engine.gaussian_exe = g_version
+        engine.optimize_geomeTRIC()
+
+    # make sure the molecule is the same
+    molecule = Molecule("input.com")
+    assert molecule.Data["bonds"] == engine.M.Data["bonds"]
+    assert molecule.Data["elem"] == engine.M.Data["elem"]
+    assert molecule.Data["charge"] == engine.M.Data["charge"]
+    assert molecule.Data["mult"] == engine.M.Data["mult"]
+    assert len(molecule.molecules) == len(engine.M.molecules)
+    assert np.allclose(molecule.xyzs[0], engine.M.xyzs[0])
+
+
+def test_gaussian_native_results(tmpdir):
+    """
+    Test reading the results of a native optimization.
+    """
+    engine = EngineGaussian(input_file=get_data("hooh_native.com"), exe="g09", native_opt=True)
+    engine.set_dihedral_constraints([[0, 1, 2, 3, 90]])
+    g_version = get_gaussian_version()
+
+    if g_version is not None:
+        engine.gaussian_exe = g_version
+
+        tmpdir.chdir()
+        engine.optimize_native()
+        # get the optimized molecule from the run
+        opt_molecule = engine.load_native_output("ligand.fchk", "gaussian.log")
+
+    else:
+        # load up the results from a g09 local run
+        opt_molecule = engine.load_native_output(get_data("ligand.fchk"), get_data("gaussian.log"))
+
+    # we need to make sure the angle matches what we requested
+    pytest.approx(90, opt_molecule.measure_dihedrals(0, 1, 2, 3)[0])
+
+
+def test_gaussian_native_extra_constraints():
+    """
+    Make sure an error is raise if any extra constraints are passed to a native gaussian run.
+    """
+    engine = EngineGaussian(input_file=get_data("hooh_native.com"), extra_constraints={}, exe="g09", native_opt=True)
+
+    with pytest.raises(RuntimeError):
+        engine.optimize_native()
+
+
+def test_gaussian_native_opt_fail():
+    """
+    Make sure we raise an error if we cannot find the optimization complete message in the log file.
+    """
+    engine = EngineGaussian(input_file=get_data("hooh_native.com"), exe="g09", native_opt=True)
+
+    with pytest.raises(RuntimeError):
+        # load the log file with the complete statement missing
+        engine.load_native_output(get_data("ligand.fchk"), get_data("gaussian_fail.log"))
+
+
+def test_gaussian_native_no_coords():
+    """
+    Make sure an error is raised if we can not locate the final geometry in the formatted checkpoint file.
+    """
+    engine = EngineGaussian(input_file=get_data("hooh_native.com"), exe="g09", native_opt=True)
+    with pytest.raises(RuntimeError):
+        engine.load_native_output(get_data("no_coords.fchk"), get_data("gaussian.log"))
+
+
+def test_gaussian_native_no_energy():
+    """
+    Make sure an error is raised if the total energy can not be found in the formatted checkpoint file.
+    """
+    engine = EngineGaussian(input_file=get_data("hooh_native.com"), exe="g09", native_opt=True)
+    with pytest.raises(RuntimeError):
+        engine.load_native_output(get_data("no_energy.fchk"), get_data("gaussian.log"))
+
+
+def test_gaussian_native_missing_coordinate():
+    """
+    If the number of coordinates extracted does not match the number of coordinates listed in the file raise an error.
+    """
+    engine = EngineGaussian(input_file=get_data("hooh_native.com"), exe="g09", native_opt=True)
+    with pytest.raises(AssertionError):
+        engine.load_native_output(get_data("missing_coord.fchk"), get_data("gaussian.log"))
