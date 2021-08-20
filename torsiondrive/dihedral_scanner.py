@@ -20,7 +20,12 @@ from torsiondrive.priority_queue import PriorityQueue
 
 def normalize_dihedral(d):
     """ Normalize any number to the range (-180, 180], including 180 """
-    return d + (180-d)//360*360
+
+    # -180 is a special case; we don't want it flipping into 180 if given
+    if d == -180:
+        return d
+    else:
+        return d + (180-d)//360*360
 
 def get_geo_key(coords):
     """
@@ -211,7 +216,7 @@ class DihedralScanner:
         """
         self.grid_axes = []
         for gs in self.grid_spacing:
-            self.grid_axes.append(range(-180+gs, 180+gs, gs))
+            self.grid_axes.append(range(-180, 180+gs, gs))
         self.grid_ids = tuple(itertools.product(*self.grid_axes))
 
     def build_dihedral_mask(self, dihedral_ranges):
@@ -280,14 +285,18 @@ class DihedralScanner:
     def grid_neighbors(self, grid_id):
         """ Take a center grid id, return all the neighboring grid ids, in each dimension """
         neighbor_gridids = []
+
         for i_dim in range(len(grid_id)):
             gs = self.grid_spacing[i_dim]
+
             lower_neighbor = list(grid_id)
             lower_neighbor[i_dim] = normalize_dihedral(grid_id[i_dim] - gs)
             neighbor_gridids.append(tuple(lower_neighbor))
+
             higher_neighbor = list(grid_id)
             higher_neighbor[i_dim] = normalize_dihedral(grid_id[i_dim] + gs)
             neighbor_gridids.append(tuple(higher_neighbor))
+
         return tuple(neighbor_gridids)
 
     def grid_full_neighbors(self, grid_id):
@@ -317,8 +326,10 @@ class DihedralScanner:
         if len(self.opt_queue) == 0:
             print("No tasks in opt_queue! Exiting..")
             return
+
         # make sure we're in the rootpath
         os.chdir(self.rootpath)
+
         # check if the tmp folder exists
         if os.path.isdir(self.tmp_folder_name):
             # use existing tmp folder and read task cache
@@ -326,19 +337,25 @@ class DihedralScanner:
         else:
             # setup new tmp folders
             self.create_tmp_folder()
+
         # dictionary that saves the information for each running job, like orig m, orig grid_id, target grid_id
         self.running_job_path_info = dict()
+
         # Queue that saves the finished job results for each iteration
         # In each iteration, this will be populated by job results from task cache, and from new calculations
         # After parsing the finished jobs, this will emptied for the next iteration
         # We used a PriorityQueue here so the order of parsing finished jobs will be kept
         self.current_finished_job_results = PriorityQueue()
+
         # print scan status interval
         start_time = last_print_time = time.time()
+
         # the minimum time interval between prints
         min_print_interval = -1 # Disabled for now
+
         # store the grid ids that have found lower energy than existing one, for draw_ramachandran_plot()
         self.refined_grid_ids = set()
+
         # save the status of grid from beginning of run, useful when generating state files
         # self.grid_status = collections.defaultdict(list)
         while True:
@@ -354,58 +371,74 @@ class DihedralScanner:
                 except UnicodeEncodeError:
                     print("Warning: UnicodeEncodeError occured, status map not printed.")
                 last_print_time = current_time
+
             # Launch all jobs in self.opt_queue
             # new jobs will be put into self.running_job_path_info
             # job results found in self.task_cache will be added to self.current_finished_job_results
             self.launch_opt_jobs()
+
             # wait until all jobs finish, take out from self.running_job_path_info
             while len(self.running_job_path_info) > 0:
                 self.wait_extract_finished_jobs()
+
             # check all finished jobs and keep the best ones for the current iteration
             current_best_grid_m = dict()
             while len(self.current_finished_job_results) > 0:
                 m, grid_id = self.current_finished_job_results.pop()
                 if grid_id not in current_best_grid_m or m.qm_energies[0] < current_best_grid_m[grid_id].qm_energies[0]:
                     current_best_grid_m[grid_id] = m
+
             # we only want refined results in current iteration to show in draw_ramachandran_plot()
             self.refined_grid_ids = set()
+
             # compare the best results between current iteration and all previous iterations
             newly_updated_grid_m = []
             for grid_id, m in current_best_grid_m.items():
                 energy = m.qm_energies[0]
+
                 # update current global minimum
                 if self.global_minimum_energy is None or energy < self.global_minimum_energy:
                     self.global_minimum_energy = energy
+
                 updating_grid_point = False
                 if grid_id not in self.grid_energies:
                     if self.verbose:
                         print(f"First energy for grid_id {grid_id} = {energy}")
                     updating_grid_point = True
+
                 elif energy < self.grid_energies[grid_id] - self.energy_decrease_thresh:
                     if self.verbose:
                         print(f"Energy for grid_id {grid_id} decreased from {self.grid_energies[grid_id]} to {energy}")
                     updating_grid_point = True
+
                     # we record the refined_grid_ids here to be printed as green tiles in draw_ramachandran_plot()
                     self.refined_grid_ids.add(grid_id)
+
                 if updating_grid_point:
                     self.grid_energies[grid_id] = energy
                     self.grid_final_geometries[grid_id] = m.xyzs[0]
                     if hasattr(m, 'qm_grads'):
                         self.grid_final_gradients[grid_id] = m.qm_grads[0]
                     newly_updated_grid_m.append((grid_id, m))
+
             # create new tasks for each newly_updated_grid_m
             for grid_id, m in newly_updated_grid_m:
+
                 # every neighbor grid point will get one new task
                 for neighbor_gid in self.grid_neighbors(grid_id):
                     task = m, grid_id, neighbor_gid
+
                     # validate task before pushing
                     if self.validate_task(task):
+
                         # all jobs are pushed with the same priority for now, can be adjusted here
                         self.opt_queue.push(task)
+
             # check if all jobs finished
             if len(self.opt_queue) == 0 and len(self.running_job_path_info) == 0:
                 print("All optimizations converged at lowest energy. Job Finished!")
                 break
+
         # the finish function will write files like scan.xyz, qdata.txt to disk
         self.finish()
 
@@ -430,6 +463,7 @@ class DihedralScanner:
             True if the task is valid
         """
         m, from_grid_id, to_grid_id = task
+
         # check if dihedral is in mask
         if self.dihedral_mask is not None:
             for d, dmask in zip(to_grid_id, self.dihedral_mask):
@@ -437,6 +471,7 @@ class DihedralScanner:
                     if self.verbose:
                         print(f"Task with target grid_id {to_grid_id} skipped because {d} doesn't fit in range limit")
                     return False
+
         # check if energy is higher than limit
         if self.energy_upper_limit is not None:
             if self.global_minimum_energy is not None and hasattr(m, 'qm_energies') and len(m.qm_energies) > 0:
@@ -565,8 +600,10 @@ class DihedralScanner:
         self.running_job_path_info[job_path] = m, from_grid_id, to_grid_id
         """
         assert hasattr(self, 'running_job_path_info') and hasattr(self, 'current_finished_job_results')
+
         while len(self.opt_queue) > 0:
             m, from_grid_id, to_grid_id = self.opt_queue.pop()
+
             # check if this job already exists
             m_geo_key = get_geo_key(m.xyzs[0])
             if m_geo_key in self.task_cache[to_grid_id]:
@@ -575,10 +612,13 @@ class DihedralScanner:
                 result_m.elem = list(m.elem)
                 result_m.xyzs = [final_geo]
                 result_m.qm_energies = [final_energy]
+
                 if final_gradient is not None:
                     result_m.qm_grads = [final_gradient]
+
                 result_m.build_topology()
                 grid_id = self.get_dihedral_id(result_m, check_grid_id=to_grid_id)
+
                 if grid_id is None:
                     print(f"Cached result from {job_folder} is ignored because optimized geometry is far from grid id {to_grid_id}")
                 else:
