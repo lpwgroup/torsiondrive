@@ -249,6 +249,11 @@ class DihedralScanner:
             else:
                 # the normal case
                 dmask = {g for g in ax if l <= g <= u}
+
+            # handle special case of l == -180
+            # needed so that 180 actually exists in dmask, and is computed
+            if l == -180:
+                dmask.add(180)
             dihedral_mask.append(dmask)
         return dihedral_mask
 
