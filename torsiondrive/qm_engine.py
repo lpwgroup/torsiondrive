@@ -85,7 +85,6 @@ class QMEngine(object):
         Load the result of optimization into a Molecule object, from job_path
         Return the Molecule object
         """
-        print(job_path)
         orig_dir = os.getcwd()
         if job_path is not None:
             os.chdir(job_path)
