@@ -645,17 +645,23 @@ class DihedralScanner:
             print("Find finished jobs:", finished_path_set)
         for job_path in finished_path_set:
             m_init, from_grid_id, to_grid_id = self.running_job_path_info.pop(job_path)
-            # call the engine to parse output file and return final geometry/energy in a new molecule
-            m = self.engine.load_task_result_m(job_path)
-            # save the parsed task result to disk
-            self.save_task_cache(job_path, m_init, m)
-            # we will check here if the optimized structure has the desired dihedral ids
-            grid_id = self.get_dihedral_id(m, check_grid_id=to_grid_id)
-            if grid_id is None:
-                print(f"Constrained optimization result at {job_path} is skipped, because final geometry is far from grid id {to_grid_id}")
+            if 'Failed' in os.listdir(job_path):
+                print(f"Constrained optimization result at {job_path} is "
+                      f"skipped, because QM calculation failed to run. See "
+                      f"the *.bk files for the detail.")
+                os.remove(os.path.join(job_path, 'Failed'))
             else:
-                # each finished job result is a tuple of (m, grid_id)
-                self.current_finished_job_results.push((m, grid_id), priority=job_path)
+                # call the engine to parse output file and return final geometry/energy in a new molecule
+                m = self.engine.load_task_result_m(job_path)
+                # save the parsed task result to disk
+                self.save_task_cache(job_path, m_init, m)
+                # we will check here if the optimized structure has the desired dihedral ids
+                grid_id = self.get_dihedral_id(m, check_grid_id=to_grid_id)
+                if grid_id is None:
+                    print(f"Constrained optimization result at {job_path} is skipped, because final geometry is far from grid id {to_grid_id}")
+                else:
+                    # each finished job result is a tuple of (m, grid_id)
+                    self.current_finished_job_results.push((m, grid_id), priority=job_path)
 
     def finish(self):
         """ Write qdata.txt and scan.xyz file based on converged scan results """
