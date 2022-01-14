@@ -358,6 +358,8 @@ class EngineGaussian(QMEngine):
         """
         reading_molecule, found_geo = False, False
         gauss_temp = []  # store a template of the input file for generating new ones
+        coords = []
+        elems = []
         with open(input_file) as gauss_in:
             for line in gauss_in:
                 ls = line.split()
@@ -366,6 +368,10 @@ class EngineGaussian(QMEngine):
                     if not found_geo:
                         found_geo = True
                         gauss_temp.append("$!geometry@here")
+                        charge, mult = previous_line.split()
+                    # parse the xyz format
+                    elems.append(ls[0])
+                    coords.append(ls[1:4])
 
                 elif reading_molecule:
                     if line.strip() == '':
@@ -384,6 +390,7 @@ class EngineGaussian(QMEngine):
                     self.temp_type = 'optimize'
                 elif "force=nostep" in line.lower():
                     self.temp_type = "gradient"
+                previous_line = line
         assert found_geo, "XYZ geometry not found in molecule block of %s" % input_file
         if self.native_opt:
             assert self.temp_type == 'optimize', "input_file should be a opt job to use native opt include the Opt=ModRedundant flag"
@@ -392,7 +399,12 @@ class EngineGaussian(QMEngine):
             gauss_temp.insert(0, "%Chk=ligand\n")
 
         self.gauss_temp = gauss_temp
-        self.M = Molecule(input_file)
+        self.M = Molecule()
+        self.M.elem = elems
+        self.M.xyzs = [np.array(coords, dtype=float)]
+        self.M.charge = int(charge)
+        self.M.mult = int(mult)
+        self.M.build_topology()
 
     def optimize_geomeTRIC(self):
         """ run the constrained optimization using geomeTRIC package, in 3 steps:
