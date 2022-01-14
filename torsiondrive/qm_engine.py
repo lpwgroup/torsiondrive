@@ -106,6 +106,7 @@ class QMEngine(object):
                 subprocess.run(cmd, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             except subprocess.CalledProcessError:
                 print('Run failed.')
+                # Create a Failed file to indicate a failed calculation.
                 open('Failed', 'a').close()
         else:
             self.work_queue.submit(cmd, input_files, output_files)

@@ -645,6 +645,8 @@ class DihedralScanner:
             print("Find finished jobs:", finished_path_set)
         for job_path in finished_path_set:
             m_init, from_grid_id, to_grid_id = self.running_job_path_info.pop(job_path)
+            # A file named Failed in the directory indicates a failed
+            # calculation.
             if 'Failed' in os.listdir(job_path):
                 print(f"Constrained optimization result at {job_path} is "
                       f"skipped, because QM calculation failed to run.")
