@@ -647,8 +647,7 @@ class DihedralScanner:
             m_init, from_grid_id, to_grid_id = self.running_job_path_info.pop(job_path)
             if 'Failed' in os.listdir(job_path):
                 print(f"Constrained optimization result at {job_path} is "
-                      f"skipped, because QM calculation failed to run. See "
-                      f"the *.bk files for the detail.")
+                      f"skipped, because QM calculation failed to run.")
                 os.remove(os.path.join(job_path, 'Failed'))
             else:
                 # call the engine to parse output file and return final geometry/energy in a new molecule

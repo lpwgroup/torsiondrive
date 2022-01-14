@@ -102,12 +102,11 @@ class QMEngine(object):
             input_files = []
         if output_files is None:
             output_files = []
-        print(output_files)
         if self.work_queue is None:
             try:
                 subprocess.run(cmd, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             except subprocess.CalledProcessError:
-                print('Run failed. Ignore the current run.')
+                print('Run failed.')
                 open('Failed', 'a').close()
         else:
             self.work_queue.submit(cmd, input_files, output_files)
