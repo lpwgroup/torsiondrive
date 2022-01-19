@@ -460,7 +460,7 @@ class EngineGaussian(QMEngine):
         final_energy, elems, coords = None, [], []
         with open(filename2) as logfile:
             for line in logfile:
-                if 'Optimization completed.' in line:
+                if 'Optimization completed' in line:
                     opt_result = True
                     break
 
