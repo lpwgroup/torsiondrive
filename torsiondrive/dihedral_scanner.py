@@ -653,7 +653,12 @@ class DihedralScanner:
                 os.remove(os.path.join(job_path, 'Failed'))
             else:
                 # call the engine to parse output file and return final geometry/energy in a new molecule
-                m = self.engine.load_task_result_m(job_path)
+                try:
+                    m = self.engine.load_task_result_m(job_path)
+                except RuntimeError:
+                    print(f"Constrained optimization result at {job_path} is "
+                          f"skipped, because QM calculation failed to run.")
+                    continue
                 # save the parsed task result to disk
                 self.save_task_cache(job_path, m_init, m)
                 # we will check here if the optimized structure has the desired dihedral ids
