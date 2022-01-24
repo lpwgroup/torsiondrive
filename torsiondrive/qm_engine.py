@@ -440,7 +440,8 @@ class EngineGaussian(QMEngine):
         self.optblockStr =''
         for d1, d2, d3, d4, v in self.dihedral_idx_values:
             self.optblockStr += f'{d1 + 1} {d2 + 1} {d3 + 1} {d4 + 1} ={v:.3f} B\n'  # Build the angle
-            self.optblockStr += f'{d1 + 1} {d2 + 1} {d3 + 1} {d4 + 1} F\n\n'           # Freeze the angle
+            self.optblockStr += f'{d1 + 1} {d2 + 1} {d3 + 1} {d4 + 1} F\n'           # Freeze the angle
+        self.optblockStr += f'\n' # Add the tailing line.
         # write input file
         self.write_input('gaussian.com')
         # run the job
