@@ -549,3 +549,33 @@ def test_gaussian_native_missing_coordinate():
     engine = EngineGaussian(input_file=get_data("hooh_native.com"), exe="g09", native_opt=True)
     with pytest.raises(AssertionError):
         engine.load_native_output(get_data("missing_coord.fchk"), get_data("gaussian.log"))
+
+def test_gaussian_four_kwarg(tmpdir):
+    """
+    If there are four keyword arguments in the input line, it would be parsed
+    incorrectly by the geometric.molecule.Molecule()
+    """
+    with open(get_data("hooh_native.com"), 'r') as f:
+        text = f.read()
+    gauss_in = tmpdir.join('hooh_native.com')
+    # Change the command line to have four terms.
+    gauss_in.write(text.replace('# HF/6-31G(d) Opt=ModRedundant',
+                                '# B3LYP/6-31G(d) Opt=ModRedundant em=GD3BJ'))
+    tmpdir.chdir()
+    engine = EngineGaussian(input_file=tmpdir.join('hooh_native.com'), exe="g09",
+                            native_opt=True)
+    # set the dihedral to be scanned and the value
+    engine.set_dihedral_constraints([[0, 1, 2, 3, 90]])
+
+    # check if gaussian can be ran else expect an error
+    g_version = get_gaussian_version()
+    if g_version is None:
+        with pytest.raises(subprocess.CalledProcessError):
+            engine.optimize_native()
+
+    else:
+        engine.gaussian_exe = g_version
+        engine.optimize_native()
+
+    with open('gaussian.com', 'r') as f:
+        assert 'B3LYP/6-31G(d) Opt=ModRedundant em=GD3BJ' in f.read()
