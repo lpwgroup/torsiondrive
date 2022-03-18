@@ -19,9 +19,12 @@ class WorkQueue:
         self.last_print_time = 0
         print('Work Queue listening on %d' % wq.port, file=sys.stderr)
 
-    def submit(self, command, inputfiles, outputfiles):
+    def submit(self, command, inputfiles, outputfiles, core=None):
         command += ' 2>&1'
         task = work_queue.Task(command)
+        # xTB runs optimally using one core so make it that the task will consider core requirement.
+        if core:
+            task.specify_cores(core)
         cwd = os.getcwd()
         for f in inputfiles:
             lf = os.path.join(cwd,f)

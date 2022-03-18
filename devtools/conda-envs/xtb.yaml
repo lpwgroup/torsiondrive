@@ -1,0 +1,20 @@
+name: test
+channels:
+  - conda-forge
+dependencies:
+  - xtb
+
+  - geomeTRIC>=0.9.7
+  - numpy>=1.11
+
+    # for building cctools.workqueue
+  - ndcctools
+  - swig
+
+    # Testing
+  - pytest
+  - pytest-cov
+  - codecov
+
+    # For plotting tools
+  - matplotlib

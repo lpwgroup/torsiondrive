@@ -10,7 +10,7 @@ import shutil
 import numpy as np
 
 from torsiondrive.launch import create_engine
-from torsiondrive.qm_engine import QMEngine, EngineBlank, EnginePsi4, EngineQChem, EngineTerachem, EngineOpenMM, EngineGaussian
+from torsiondrive.qm_engine import QMEngine, EngineBlank, EnginePsi4, EngineQChem, EngineTerachem, EngineOpenMM, EngineGaussian, EnginexTB
 from geometric.molecule import Molecule
 
 
@@ -579,3 +579,60 @@ def test_gaussian_four_kwarg(tmpdir):
 
     with open('gaussian.com', 'r') as f:
         assert 'B3LYP/6-31G(d) Opt=ModRedundant em=GD3BJ' in f.read()
+
+class TestxTB():
+    def test_load_native(self):
+        '''Test the method EnginexTB.load_input
+        Load a normal native opt input file
+        And test if the information is read.'''
+        engine = EnginexTB(native_opt=True)
+        engine.load_input(get_data("hooh.xyz"))
+        assert engine.M.elem == ['H', 'O', 'O', 'H']
+        assert engine.M.xyzs[0].shape == (4, 3)
+        assert np.allclose([0.90782, -0.41394, 0.81465], engine.M.xyzs[0][-1], atol=1e-05)
+        assert len(engine.xTB_args.split()) == 9
+
+    def test_load_native_blank(self, tmpdir):
+        '''Test the method EnginexTB.load_input
+        Load a native opt input file with no input command
+        And test if the flag --opt has been added.'''
+        with open(get_data("hooh.xyz"), 'r') as f:
+            text = f.read()
+        xtb_in = tmpdir.join("hooh.xyz")
+        # Change the command line to empty
+        xtb_in.write(text.replace('xTB arguments: --opt --chrg 0 --uhf 0 --gfn 2 --parallel 1', ''))
+        engine = EnginexTB(native_opt=True)
+        tmpdir.chdir()
+        engine.load_input("hooh.xyz")
+        assert '--opt' in engine.xTB_args
+
+    def test_native_input(self, tmpdir):
+        '''Test the method EnginexTB.optimize_native
+        Load a normal native opt input file
+        And test if the result xtbopt.xyz is generated.'''
+        engine = EnginexTB(native_opt=True)
+        engine.load_input(get_data("hooh.xyz"))
+        engine.extra_constraints = None
+        # The internal index is 0-based
+        engine.dihedral_idx_values = [[0, 1, 2, 3, 0], ]
+        tmpdir.chdir()
+        engine.optimize_native()
+        assert tmpdir.join("xtbopt.xyz").exists()
+
+    def test_load_native_output(self, tmpdir):
+        '''Test the method EnginexTB.load_native_output
+        Load xTB GeoOpt output file
+        And test if the result xtbopt.xyz is read.'''
+        with open(get_data("hooh.xyz"), 'r') as f:
+            text = f.read()
+        xtb_out = tmpdir.join("xtbopt.xyz")
+        # Change the command line to results.
+        xtb_out.write(text.replace('xTB arguments: --opt --chrg 0 --uhf 0 --gfn 2 --parallel 1',
+                                  'energy: -9.054669567034 gnorm: 0.000426188591 xtb: 6.4.1 (conda-forge)'))
+        engine = EnginexTB(native_opt=True)
+        tmpdir.chdir()
+        m = engine.load_native_output('xtbopt.xyz')
+
+        assert m.elem == ['H', 'O', 'O', 'H']
+        assert m.xyzs[0].shape == (4, 3)
+        assert np.allclose([0.90782, -0.41394, 0.81465], m.xyzs[0][-1], atol=1e-05)

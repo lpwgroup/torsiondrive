@@ -15,7 +15,7 @@ import time
 from warnings import warn
 import numpy as np
 from geometric.molecule import Molecule
-from torsiondrive.priority_queue import PriorityQueue
+from .priority_queue import PriorityQueue
 
 
 def normalize_dihedral(d):
