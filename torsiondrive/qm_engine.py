@@ -354,7 +354,7 @@ class EnginexTB(QMEngine):
                 elems.append(elem)
                 coords.append((x, y, z))
 
-        if comment[:len('xTB arguments:')] == 'xTB arguments:':
+        if comment.startswith('xTB arguments:'):
             cmd = comment[len('xTB arguments:'):]
         else:
             cmd = '--opt'
