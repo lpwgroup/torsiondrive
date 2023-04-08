@@ -362,7 +362,8 @@ class EnginexTB(QMEngine):
 
         if self.native_opt:
             self.temp_type = "optimize"
-            assert '--opt' in cmd, "comment line should contain --opt command to use native opt"
+            if not '--opt' in cmd:
+                raise ValueError("comment line should contain --opt command to use native opt")
 
         if '--parallel' in cmd:
             self.core = int(cmd[cmd.index('--parallel')+len('--parallel'):].split()[0])
@@ -397,7 +398,7 @@ class EnginexTB(QMEngine):
         2. run the job
         """
         if self.extra_constraints is not None:
-            raise RuntimeError('extra constraints not supported in xTB native optimizations')
+            raise RuntimeError('Extra constraints not supported in TorsionDrive xTB native optimizations yet.')
         # add the optking command
         self.opt_restrain = '$constrain\n'
         self.opt_restrain += 'force constant=15.0\n' # Unit Hatree/rad^2 to obtain a STD of 0.5 degree
@@ -421,11 +422,15 @@ class EnginexTB(QMEngine):
                 elem, x, y, z = outfile.readline().split()
                 elems.append(elem)
                 coords.append((x, y, z))
-        try:
-            # Also checks if right number of fields are present
-            _, final_energy, _, _, _, _, _ = comment.split()
-        except ValueError:
-            raise ValueError('Not enough fields in the line {}. '
+        # The first real number being the energy
+        for field in comment.split():
+            try:
+                final_energy = float(field)
+                break
+            except ValueError:
+                pass
+        else:
+            raise ValueError('Can not find the Final Energy from the line {}. '
                              'Check the output to make sure the optimisation '
                              'successfully terminates.'.format(comment))
         final_energy = float(final_energy)
