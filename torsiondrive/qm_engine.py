@@ -1,5 +1,7 @@
 import os
 import subprocess
+import warnings
+
 import numpy as np
 import copy
 from geometric.molecule import Molecule
@@ -19,9 +21,6 @@ class QMEngine(object):
         self.native_opt = native_opt
         self.extra_constraints = extra_constraints
         self.rootpath = os.getcwd()
-        # Number of cores required by the QMEngine, used by work queue to allocate resources.
-        # Semi-empirical methods like xTB runs optimally on one core
-        self.core = None
         if input_file is not None:
             self.load_input(input_file)
         else:
@@ -106,7 +105,7 @@ class QMEngine(object):
         if self.work_queue is None:
             subprocess.run(cmd, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         else:
-            self.work_queue.submit(cmd, input_files, output_files, core=self.core)
+            self.work_queue.submit(cmd, input_files, output_files)
 
     def find_finished_jobs(self, running_job_path_id, wait_time=10):
         """ Find finished jobs in job_path_set, return a set of job paths """
@@ -362,18 +361,11 @@ class EnginexTB(QMEngine):
 
         if self.native_opt:
             self.temp_type = "optimize"
+            warnings.warn('Note that xTB uses an energy restarint to restrain the dihedral, '
+                          'which might give different results comapred with a torsion constrain used in geomeTRIC.')
             if not '--opt' in cmd:
                 raise ValueError("comment line should contain --opt command to use native opt")
 
-        if '--parallel' in cmd:
-            self.core = int(cmd[cmd.index('--parallel')+len('--parallel'):].split()[0])
-            pass
-        elif '-P' in cmd:
-            self.core = int(cmd[cmd.index('-P')+len('-P'):].split()[0])
-        else:
-            # Run xTB in single core
-            self.core = 1
-            cmd += ' --parallel 1 '
 
         self.xTB_args = cmd
         # here self.M can be and will be overwritten by external functions
