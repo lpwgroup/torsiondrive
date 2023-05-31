@@ -361,8 +361,9 @@ class EnginexTB(QMEngine):
 
         if self.native_opt:
             self.temp_type = "optimize"
-            warnings.warn('Note that xTB uses an energy restarint to restrain the dihedral, '
-                          'which might give different results comapred with a torsion constrain used in geomeTRIC.')
+            warnings.warn('Note that xTB uses an energy restraint to restrain the '
+                          'dihedral, which might give different results compared with a '
+                          'torsion constrain used in geomeTRIC.')
             if not '--opt' in cmd:
                 raise ValueError("comment line should contain --opt command to use native opt")
 
