@@ -146,6 +146,29 @@ class EngineBlank(QMEngine):
 
     def load_native_output(self):
         return Molecule()
+class EngineASE(QMEngine):
+    def __init__(self, input_file=None, work_queue=None, native_opt=False, extra_constraints=None, exe=None):
+        super().__init__(input_file, work_queue, native_opt, extra_constraints)
+    def load_input(self, input_file):
+        self.m_xyz = Molecule(input_file)
+        self.M = copy.deepcopy(self.m_xyz)
+    def write_input(self):
+        """ Write a new xyz file with the lastest geometry"""
+        self.m_xyz.xyzs[0] = self.M.xyzs[0]
+        self.m_xyz.write('input.xyz')
+    def optimize_geomeTRIC(self):
+        """ run the constrained optimization using geomeTRIC package, in 3 steps:
+        1. Write a constraints.txt file.
+        2. Write a gradient job input file.
+        3. Run the job
+        """
+        # step 1
+        self.write_constraints_txt()
+        # step 2
+        self.write_input()
+        # step 3
+        cmd = 'geometric-optimize --prefix tdrive --qccnv yes --reset yes --epsilon 0.0 --enforce 0.1 --qdata yes --engine ase input.xyz constraints.txt'
+        self.run(cmd, input_files =['input.xyz', 'constraints.txt'], output_files=['tdrive.log', 'tdrive.xyz', 'qdata.txt'])
 
 class EngineOpenMM(QMEngine):
     def load_input(self, input_file):

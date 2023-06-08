@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from .dihedral_scanner import DihedralScanner
-from .qm_engine import EnginePsi4, EngineQChem, EngineTerachem, EngineOpenMM, EngineGaussian, EnginexTB
+from .qm_engine import EngineASE, EnginePsi4, EngineQChem, EngineTerachem, EngineOpenMM, EngineGaussian, EnginexTB
 from .extra_constraints import make_constraints_dict, check_conflict_constraints
 from geometric.molecule import Molecule
 import shutil
@@ -105,7 +105,7 @@ def create_engine(enginename, inputfile=None, work_queue_port=None, native_opt=F
     Function to create a QM Engine object with work_queue and geomeTRIC setup.
     This is intentionally left outside of DihedralScanner class, because multiple DihedralScanner could share the same engine
     """
-    engine_dict = {'xtb': EnginexTB, 'psi4': EnginePsi4, 'qchem': EngineQChem, 'terachem': EngineTerachem,
+    engine_dict = {'ase': EngineASE, 'xtb': EnginexTB, 'psi4': EnginePsi4, 'qchem': EngineQChem, 'terachem': EngineTerachem,
                    'openmm': EngineOpenMM, "gaussian": EngineGaussian}
     # initialize a work_queue
     if work_queue_port is not None:
@@ -244,7 +244,7 @@ def main():
     parser.add_argument('dihedralfile', type=str, help='File defining all dihedral angles to be scanned.')
     parser.add_argument('--init_coords', type=str, help='File contain a list of geometries, that will be used as multiple starting points, overwriting the geometry in input file.')
     parser.add_argument('-g', '--grid_spacing', type=int, nargs='*', default=[15], help='Grid spacing for dihedral scan, i.e. every 15 degrees, multiple values will be mapped to each dihedral angle')
-    parser.add_argument('-e', '--engine', type=str, default="psi4", choices=['qchem', 'psi4', 'terachem', 'openmm', "gaussian", "xtb"], help='Engine for running scan')
+    parser.add_argument('-e', '--engine', type=str, default="psi4", choices=['ase', 'qchem', 'psi4', 'terachem', 'openmm', "gaussian", "xtb"], help='Engine for running scan')
     parser.add_argument('-c', '--constraints', type=str, default=None, help='Provide a constraints file in geomeTRIC format for additional freeze or set constraints (geomeTRIC or TeraChem only)')
     parser.add_argument('--native_opt', action='store_true', default=False, help='Use QM program native constrained optimization algorithm. This will turn off geomeTRIC package.')
     parser.add_argument('--energy_thresh', type=float, default=1e-5, help='Only activate grid points if the new optimization is <thre> lower than the previous lowest energy (in a.u.).')
