@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from torsiondrive.dihedral_scanner import DihedralScanner
-from torsiondrive.qm_engine import EnginePsi4, EngineQChem, EngineTerachem, EngineOpenMM, EngineGaussian
-from torsiondrive.extra_constraints import make_constraints_dict, check_conflict_constraints
+from .dihedral_scanner import DihedralScanner
+from .qm_engine import EnginePsi4, EngineQChem, EngineTerachem, EngineOpenMM, EngineGaussian, EnginexTB
+from .extra_constraints import make_constraints_dict, check_conflict_constraints
 from geometric.molecule import Molecule
 import shutil
 
@@ -105,7 +105,8 @@ def create_engine(enginename, inputfile=None, work_queue_port=None, native_opt=F
     Function to create a QM Engine object with work_queue and geomeTRIC setup.
     This is intentionally left outside of DihedralScanner class, because multiple DihedralScanner could share the same engine
     """
-    engine_dict = {'psi4': EnginePsi4, 'qchem': EngineQChem, 'terachem':EngineTerachem, 'openmm': EngineOpenMM, "gaussian": EngineGaussian}
+    engine_dict = {'xtb': EnginexTB, 'psi4': EnginePsi4, 'qchem': EngineQChem, 'terachem': EngineTerachem,
+                   'openmm': EngineOpenMM, "gaussian": EngineGaussian}
     # initialize a work_queue
     if work_queue_port is not None:
         from torsiondrive.wq_tools import WorkQueue
@@ -115,6 +116,8 @@ def create_engine(enginename, inputfile=None, work_queue_port=None, native_opt=F
     # Check the engine, if OpenMM we can not use a native_opt
     if enginename == 'openmm':
         assert native_opt is False, "OpenMM engine does not support native optimizer"
+    if enginename == 'xtb':
+        assert native_opt is True, "xTB with geomeTRIC is not Implemented. Use MolSSI/QCEngine instead."
     if enginename == "gaussian":
         if shutil.which("g16") is not None:
             gaussian_exe = "g16"
@@ -127,6 +130,113 @@ def create_engine(enginename, inputfile=None, work_queue_port=None, native_opt=F
         engine = engine_dict[enginename](inputfile, work_queue, native_opt=native_opt, extra_constraints=extra_constraints)
     return engine
 
+def run(inputfile, grid_spacing, dihedralfile, verbose=True,
+        work_queue_port=None, zero_based_numbering=False, constraints=None,
+        engine='xtb', native_opt=True, init_coords=None, energy_thresh=1e-5,
+        energy_upper_limit=None):
+    """The entry point for the TorsionDrive/xTB pipeline.
+
+    Parameters
+    ----------
+    inputfile : string
+        Input template file for QMEngine. Geometry will be used as starting
+        point for scanning.
+    grid_spacing : list
+        Grid spacing for dihedral scan, i.e. every 15 degrees, multiple
+        values will be mapped to each dihedral angle.
+    dihedralfile : string
+        File defining all dihedral angles to be scanned.
+    verbose : bool
+        Print more information while running.
+    work_queue_port : int
+        Specify port number to use Work Queue to distribute optimization jobs.
+    zero_based_numbering : bool
+        Use zero_based_numbering in dihedrals file.
+    constraints : string
+        Provide a constraints file in geomeTRIC format for additional freeze
+        or set constraints (geomeTRIC or TeraChem only)
+    engine : string
+        Engine for running scan ['qchem', 'psi4', 'terachem', 'openmm',
+        "gaussian", "xtb"]
+    native_opt : bool
+        Use QM program native constrained optimization algorithm. This will
+        turn off geomeTRIC package.
+    init_coords : string
+        File contain a list of geometries, that will be used as multiple
+        starting points, overwriting the geometry in input file.
+    energy_thresh : float
+        Only activate grid points if the new optimization is <thre> lower than
+        the previous lowest energy (in a.u.).
+    energy_upper_limit : float
+        The upper energy limit for accepting a conformer.
+
+    Returns
+    -------
+    grid_ids : tuple
+        A tuple of all the grid ids (dihedral angle).
+    grid_energies : dict
+        A dictionary of all the energy with grid_ids as key.
+    grid_geometries : dict
+        A dictionary of all the final geometries with grid_ids as key.
+    elements : list
+        The corresponding element of the lines in the geometries.
+    """
+    # parse the dihedral file
+    if zero_based_numbering is True:
+        print("The use of command line --zero_based_numbering is deprecated and will be removed in the future. Please use #zero_based_numbering in dihedralfile")
+    dihedral_idxs, dihedral_ranges = load_dihedralfile(dihedralfile, zero_based_numbering)
+    grid_dim = len(dihedral_idxs)
+
+    # parse additional constraints
+    constraints_dict = None
+    if constraints is not None:
+        with open(constraints) as fin:
+            constraints_dict = make_constraints_dict(fin.read())
+            # check if there are extra constraints conflict with the specified dihedral angles
+            check_conflict_constraints(constraints_dict, dihedral_idxs)
+
+    # format grid spacing
+    n_grid_spacing = len(grid_spacing)
+    if n_grid_spacing == grid_dim:
+        grid_spacing = grid_spacing
+    elif n_grid_spacing == 1:
+        grid_spacing = grid_spacing * grid_dim
+    else:
+        raise ValueError("Number of grid_spacing values %d is not consistent with number of dihedral angles %d" % (grid_dim, n_grid_spacing))
+
+    # create QM Engine, and WorkQueue object if provided port
+    engine = create_engine(engine, inputfile=inputfile,
+                           work_queue_port=work_queue_port,
+                           native_opt=native_opt)
+
+    # load init_coords if provided
+    init_coords_M = Molecule(init_coords) if init_coords else None
+
+    # create DihedralScanner object
+    scanner = DihedralScanner(engine, dihedrals=dihedral_idxs,
+                              dihedral_ranges=dihedral_ranges,
+                              grid_spacing=grid_spacing,
+                              init_coords_M=init_coords_M,
+                              energy_decrease_thresh=energy_thresh,
+                              energy_upper_limit=energy_upper_limit,
+                              extra_constraints=constraints_dict,
+                              verbose=verbose)
+
+    # Run the scan!
+    scanner.master()
+    if verbose:
+        # After finish, print result
+        print("Dihedral scan is finished!")
+        print(" Grid ID                Energy")
+        for grid_id in sorted(scanner.grid_energies.keys()):
+            print("  {:^20} {:.10f}".format(str(grid_id),
+                                            scanner.grid_energies[grid_id]))
+    grid_ids = scanner.grid_ids
+    grid_energies = scanner.grid_energies
+    grid_geometries = scanner.grid_final_geometries
+    elements = scanner.init_coords_M[0].Data['elem']
+    return grid_ids, grid_energies, grid_geometries, elements
+
 def main():
     import argparse, sys
     parser = argparse.ArgumentParser(description="Potential energy scan of dihedral angle from 1 to 360 degree", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -134,7 +244,7 @@ def main():
     parser.add_argument('dihedralfile', type=str, help='File defining all dihedral angles to be scanned.')
     parser.add_argument('--init_coords', type=str, help='File contain a list of geometries, that will be used as multiple starting points, overwriting the geometry in input file.')
     parser.add_argument('-g', '--grid_spacing', type=int, nargs='*', default=[15], help='Grid spacing for dihedral scan, i.e. every 15 degrees, multiple values will be mapped to each dihedral angle')
-    parser.add_argument('-e', '--engine', type=str, default="psi4", choices=['qchem', 'psi4', 'terachem', 'openmm', "gaussian"], help='Engine for running scan')
+    parser.add_argument('-e', '--engine', type=str, default="psi4", choices=['qchem', 'psi4', 'terachem', 'openmm', "gaussian", "xtb"], help='Engine for running scan')
     parser.add_argument('-c', '--constraints', type=str, default=None, help='Provide a constraints file in geomeTRIC format for additional freeze or set constraints (geomeTRIC or TeraChem only)')
     parser.add_argument('--native_opt', action='store_true', default=False, help='Use QM program native constrained optimization algorithm. This will turn off geomeTRIC package.')
     parser.add_argument('--energy_thresh', type=float, default=1e-5, help='Only activate grid points if the new optimization is <thre> lower than the previous lowest energy (in a.u.).')
@@ -147,45 +257,14 @@ def main():
     # print input command for reproducibility
     print(' '.join(sys.argv))
 
-    # parse the dihedral file
-    if args.zero_based_numbering is True:
-        print("The use of command line --zero_based_numbering is deprecated and will be removed in the future. Please use #zero_based_numbering in dihedralfile")
-    dihedral_idxs, dihedral_ranges = load_dihedralfile(args.dihedralfile, args.zero_based_numbering)
-    grid_dim = len(dihedral_idxs)
-
-    # parse additional constraints
-    constraints_dict = None
-    if args.constraints is not None:
-        with open(args.constraints) as fin:
-            constraints_dict = make_constraints_dict(fin.read())
-            # check if there are extra constraints conflict with the specified dihedral angles
-            check_conflict_constraints(constraints_dict, dihedral_idxs)
-
-    # format grid spacing
-    n_grid_spacing = len(args.grid_spacing)
-    if n_grid_spacing == grid_dim:
-        grid_spacing = args.grid_spacing
-    elif n_grid_spacing == 1:
-        grid_spacing = args.grid_spacing * grid_dim
-    else:
-        raise ValueError("Number of grid_spacing values %d is not consistent with number of dihedral angles %d" % (grid_dim, n_grid_spacing))
-
-    # create QM Engine, and WorkQueue object if provided port
-    engine = create_engine(args.engine, inputfile=args.inputfile, work_queue_port=args.wq_port, native_opt=args.native_opt)
-
-    # load init_coords if provided
-    init_coords_M = Molecule(args.init_coords) if args.init_coords else None
-
-    # create DihedralScanner object
-    scanner = DihedralScanner(engine, dihedrals=dihedral_idxs, dihedral_ranges=dihedral_ranges, grid_spacing=grid_spacing, init_coords_M=init_coords_M,
-                              energy_decrease_thresh=args.energy_thresh, energy_upper_limit=args.energy_upper_limit, extra_constraints=constraints_dict, verbose=args.verbose)
-    # Run the scan!
-    scanner.master()
-    # After finish, print result
-    print("Dihedral scan is finished!")
-    print(" Grid ID                Energy")
-    for grid_id in sorted(scanner.grid_energies.keys()):
-        print("  %-20s %.10f" % (str(grid_id), scanner.grid_energies[grid_id]))
+    run(inputfile=args.inputfile, grid_spacing=args.grid_spacing,
+        dihedralfile=args.dihedralfile, verbose=args.verbose,
+        work_queue_port=args.wq_port,
+        zero_based_numbering=args.zero_based_numbering,
+        constraints=args.constraints,
+        engine=args.engine, native_opt=args.native_opt,
+        init_coords=args.init_coords, energy_thresh=args.energy_thresh,
+        energy_upper_limit=args.energy_upper_limit)
 
 if __name__ == "__main__":
     main()

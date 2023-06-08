@@ -10,9 +10,9 @@ import shutil
 from collections import defaultdict
 
 import numpy as np
-from torsiondrive.dihedral_scanner import DihedralScanner, get_geo_key, measure_dihedrals
-from torsiondrive.priority_queue import PriorityQueue
-from torsiondrive.qm_engine import EngineBlank
+from .dihedral_scanner import DihedralScanner, get_geo_key, measure_dihedrals
+from .priority_queue import PriorityQueue
+from .qm_engine import EngineBlank
 from geometric.molecule import Molecule
 from geometric.nifty import bohr2ang, ang2bohr
 

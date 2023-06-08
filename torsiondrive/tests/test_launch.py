@@ -3,7 +3,9 @@ Unit and regression test for the torsiondrive.launch module
 """
 
 import pytest
-from torsiondrive.launch import load_dihedralfile, create_engine
+import os
+from torsiondrive.launch import load_dihedralfile, create_engine, run
+from .test_qm_engine import get_data
 
 def test_load_dihedralfile_basic(tmpdir):
     tmpdir.chdir()
@@ -201,3 +203,13 @@ def test_create_engine(tmpdir):
     with pytest.raises(AssertionError):
         engine = create_engine('openmm', native_opt=True)
 
+def test_run(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    with open('dihedrals.txt', 'w') as f:
+        f.write('1 2 3 4')
+    grid_ids, grid_energies, grid_geometries, elements = run(get_data("hooh.xyz"), [15,], 'dihedrals.txt', verbose=False)
+    assert len(grid_ids) == 24
+    assert len(grid_energies) == 24
+    assert len(grid_geometries) == 24
+    assert elements == ['H', 'O', 'O', 'H']
+    assert os.path.exists(tmp_path / 'scan.xyz')

@@ -4,7 +4,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 
-from torsiondrive.tools import read_scan_xyz, find_grid_spacing
+from ..tools import read_scan_xyz, find_grid_spacing
 
 def format_2d_grid_data(grid_data, verbose=False):
     """ Take a grid_data dictionary, figure out the grid spacing of each dimension,

@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 plt.style.use('ggplot')
 
 from geometric.molecule import Molecule
-from torsiondrive.tools import read_scan_xyz
+from ..tools import read_scan_xyz
 
 
 def plot_1d_curve(grid_data, filename):
