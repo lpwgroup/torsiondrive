@@ -168,7 +168,7 @@ class EngineASE(QMEngine):
         self.write_input()
         # step 3
         cmd = 'geometric-optimize --prefix tdrive --qccnv yes --reset yes --epsilon 0.0 --enforce 0.1 --qdata yes --engine ase input.xyz constraints.txt'
-        self.run(cmd, input_files =['input.xyz', 'constraints.txt'], output_files=['tdrive.log', 'tdrive.xyz', 'qdata.txt'])
+        self.run(cmd, input_files =['input.xyz', 'constraints.txt'], output_files=['tdrive.log', 'tdrive_optim.xyz', 'qdata.txt'])
 
 class EngineOpenMM(QMEngine):
     def load_input(self, input_file):
@@ -205,7 +205,7 @@ class EngineOpenMM(QMEngine):
         self.run('geometric-optimize --prefix tdrive --qccnv --reset --epsilon 0.0 --enforce 0.1 --qdata --pdb '
                  'input.pdb --openmm input.xml constraints.txt',
                  input_files=['input.xml', 'input.pdb', 'constraints.txt'],
-                 output_files=['tdrive.log', 'tdrive.xyz', 'qdata.txt'])
+                 output_files=['tdrive.log', 'tdrive_optim.xyz', 'qdata.txt'])
 
 class EnginePsi4(QMEngine):
     def load_input(self, input_file):
@@ -323,7 +323,7 @@ class EnginePsi4(QMEngine):
         self.write_input('input.dat')
         # step 3
         cmd = 'geometric-optimize --prefix tdrive --qccnv --reset --epsilon 0.0 --enforce 0.1 --qdata --psi4 input.dat constraints.txt'
-        self.run(cmd, input_files=['input.dat', 'constraints.txt'], output_files=['tdrive.log', 'tdrive.xyz', 'qdata.txt'])
+        self.run(cmd, input_files=['input.dat', 'constraints.txt'], output_files=['tdrive.log', 'tdrive_optim.xyz', 'qdata.txt'])
 
     def load_native_output(self, filename='output.dat'):
         """ Load the optimized geometry and energy into a new molecule object and return """
@@ -552,7 +552,7 @@ class EngineGaussian(QMEngine):
         # step 3
         cmd = 'geometric-optimize --prefix tdrive --qccnv yes --reset yes --epsilon 0.0 --enforce 0.1 --qdata yes --engine gaussian input.com constraints.txt'
         self.run(cmd, input_files=['input.com', 'constraints.txt'],
-                 output_files=['tdrive.log', 'tdrive.xyz', 'qdata.txt'])
+                 output_files=['tdrive.log', 'tdrive_optim.xyz', 'qdata.txt'])
 
     def write_input(self, filename='gaussian.com'):
         """ Write Gaussian input using Molecule Class """
@@ -749,7 +749,7 @@ class EngineQChem(QMEngine):
         self.write_input('qc.in')
         # step 3
         cmd = 'geometric-optimize --prefix tdrive --qccnv --reset --epsilon 0.0 --enforce 0.1 --qdata --qchem qc.in constraints.txt'
-        self.run(cmd, input_files=['qc.in', 'constraints.txt'], output_files=['tdrive.log', 'tdrive.xyz', 'qdata.txt'])
+        self.run(cmd, input_files=['qc.in', 'constraints.txt'], output_files=['tdrive.log', 'tdrive_optim.xyz', 'qdata.txt'])
 
     def load_native_output(self, filename='qc.out'):
         """ Load the optimized geometry and energy into a new molecule object and return """
@@ -849,7 +849,7 @@ class EngineTerachem(QMEngine):
         self.write_input()
         # step 3
         cmd = 'geometric-optimize --prefix tdrive --qccnv --reset --epsilon 0.0 --enforce 0.1 --qdata run.in constraints.txt'
-        self.run(cmd, input_files=['run.in', self.tera_geo_file, 'constraints.txt'], output_files=['tdrive.log', 'tdrive.xyz', 'qdata.txt'])
+        self.run(cmd, input_files=['run.in', self.tera_geo_file, 'constraints.txt'], output_files=['tdrive.log', 'tdrive_optim.xyz', 'qdata.txt'])
 
     def load_native_output(self):
         """ Load the optimized geometry and energy into a new molecule object and return """
