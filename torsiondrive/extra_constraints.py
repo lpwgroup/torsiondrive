@@ -25,6 +25,7 @@ def make_constraints_dict(constraints_string):
             'type': 'xyz',
             'indices': [0, 1, 2]
         }],
+
         'set': [{
             'type': 'angle',
             'indices': [1, 0, 4],
@@ -39,16 +40,18 @@ def make_constraints_dict(constraints_string):
     4. For "xyz", dashed inputs like "1-3,7-9" (no space) is allowed, and will be converted to [0,1,2,6,7,8].
     """
     constraints_mode = None
-    constraints_dict = {'freeze': [], 'set': []}
+    constraints_dict = {'freeze': [], 'set': [], 'options': []}
     for line in constraints_string.split('\n'):
         # Ignore anything after a comment
-        line = line.split('#',1)[0].lower().strip()
+        line = line.split('#', 1)[0].strip()
         if len(line) == 0: continue
         if line.startswith('$'):
             if line == '$freeze':
                 constraints_mode = 'freeze'
             elif line == '$set':
                 constraints_mode = 'set'
+            elif line == '$options':
+                constraints_mode = 'options'
             elif line == '$end':
                 constraints_mode = None
             elif line == '$scan':
@@ -77,6 +80,12 @@ def make_constraints_dict(constraints_string):
                 assert all(i >= 0 for i in indices), f'Invalid atom index in line {line}, one-indexed should start from 1'
                 value = float(ls[-1])
                 spec_dict = { 'type': ctype, 'indices': indices, 'value': value }
+                constraints_dict[constraints_mode].append(spec_dict)
+            elif constraints_mode == 'options':
+                ls = line.split()
+                ctype = ls[0]
+                opt = ls[1:]
+                spec_dict = {'type': ctype, "indices": opt}
                 constraints_dict[constraints_mode].append(spec_dict)
             else:
                 raise ValueError(f"Line {line}\nConstraints mode {constraints_mode} is not supported")
@@ -142,6 +151,7 @@ def build_geometric_constraint_string(constraints_dict, dihedral_idx_values=None
         for spec_dict in spec_list:
             ctype, indices, value = spec_dict['type'], spec_dict['indices'], spec_dict['value']
             constraints_string += f'{ctype} ' + ' '.join(map(str, [i+1 for i in indices])) + f' {float(value)}\n'
+
     # write dihedral_idx_values as constraints
     if dihedral_idx_values is not None:
         if set_section_open is False:
@@ -149,6 +159,16 @@ def build_geometric_constraint_string(constraints_dict, dihedral_idx_values=None
             constraints_string += '$set\n'
         for d1, d2, d3, d4, v in dihedral_idx_values:
             constraints_string += f"dihedral {d1+1} {d2+1} {d3+1} {d4+1} {float(v)}\n"
+
+    # write "$options" section
+    spec_list = constraints_dict.get('options',[])
+    if len(spec_list) > 0:
+        constraints_string += '$options\n'
+        for spec_dict in spec_list:
+            arg, opt = spec_dict['type'], spec_dict['indices']
+            constraints_string += f'{arg} '  + ' '.join(opt)+'\n'
+
+    # print("extra_constraints.py, the generated constraints_string is: ", constraints_string)
     return constraints_string
 
 def build_terachem_constraint_string(constraints_dict, dihedral_idx_values=None):
