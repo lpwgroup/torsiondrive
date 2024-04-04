@@ -5,10 +5,10 @@ Test for qm_engine module
 import os
 import subprocess
 import pytest
-from pkg_resources import resource_filename
 import shutil
 import numpy as np
 
+from torsiondrive.data import data_dir
 from torsiondrive.launch import create_engine
 from torsiondrive.qm_engine import QMEngine, EngineBlank, EnginePsi4, EngineQChem, EngineTerachem, EngineOpenMM, EngineGaussian, EnginexTB
 from geometric.molecule import Molecule
@@ -18,7 +18,7 @@ def get_data(relative_path):
     """
     Get the file path to some data in the torsiondrive package.
     """
-    fn = resource_filename("torsiondrive", os.path.join("data", relative_path))
+    fn = os.path.join(data_dir, relative_path)
 
     if not os.path.exists(fn):
         raise ValueError("The file %s can not be found. If you just added it re-install the package."%relative_path)
