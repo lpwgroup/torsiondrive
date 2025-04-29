@@ -8,9 +8,13 @@ import sys
 import subprocess
 
 try:
-    import work_queue
-except:
-    pass
+    from ndcctools import work_queue
+except ModuleNotFoundError:
+    try:
+        import work_queue
+    except:
+        pass
+
 
 @pytest.mark.skipif("work_queue" not in sys.modules, reason='work_queue not found')
 def test_work_queue():
