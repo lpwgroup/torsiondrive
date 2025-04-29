@@ -16,7 +16,7 @@ except ModuleNotFoundError:
         pass
 
 
-@pytest.mark.skipif("work_queue" not in sys.modules, reason='work_queue not found')
+@pytest.mark.skipif(("work_queue" not in sys.modules) and ("ndcctools.work_queue" not in sys.modules), reason='work_queue not found')
 def test_work_queue():
     from torsiondrive.wq_tools import WorkQueue
     wq = WorkQueue(56789)
