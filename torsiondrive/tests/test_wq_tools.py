@@ -6,6 +6,7 @@ import pytest
 import os
 import sys
 import subprocess
+import shutil
 
 try:
     from ndcctools import work_queue
@@ -23,7 +24,12 @@ def test_work_queue():
     wq.submit('echo test > test.txt', [], ['test.txt'])
     assert wq.get_queue_status() == (0,0,0,1)
     # submit a worker
-    p = subprocess.Popen("$HOME/opt/cctools/current/bin/work_queue_worker localhost 56789 -t 1", shell=True, stderr=subprocess.DEVNULL)
+    wqw = os.path.expandvars("$HOME/opt/cctools/current/bin/work_queue_worker")  # existing hard-coded
+    if not os.path.isfile(wqw):
+        wqw = shutil.which("work_queue_worker")
+    if not wqw:
+        assert 0, "work_queue_worker cannot be found. please place in PATH"
+    p = subprocess.Popen(f"{wqw} localhost 56789 -t 1", shell=True, stderr=subprocess.DEVNULL)
     for _ in range(10):
         path = wq.check_finished_task_path()
         if path is not None:
