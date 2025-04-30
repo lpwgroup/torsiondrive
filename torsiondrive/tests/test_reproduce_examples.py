@@ -225,6 +225,13 @@ def test_reproduce_extra_constraints_example(example_path):
     os.chdir(example_path)
     os.chdir('extra_constraints')
     subprocess.run('tar zxf opt_tmp.tar.gz', shell=True, check=True)
+    # reference data is at below and is missing the empty extras_constraints.options
+    # https://github.com/lpwgroup/torsiondrive_examples/blob/master/examples/extra_constraints/constraints.txt
+    #   that is currently written. So we manipulate the ref value to add it.
+    #   Add to constraints.txt to add options.
+    otssj = json.load(open("opt_tmp/scanner_settings.json"))
+    otssj["extra_constraints"]["options"]= []
+    json.dump(otssj, open("opt_tmp/scanner_settings.json", "w"))
     shutil.copy('scan.xyz', 'orig_scan.xyz')
     argv = sys.argv[:]
     with open('run_command') as f:
