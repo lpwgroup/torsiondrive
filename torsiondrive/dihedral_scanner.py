@@ -673,7 +673,9 @@ class DihedralScanner:
             m.xyzs.append(self.grid_final_geometries[gid])
             if writing_gradients:
                 m.qm_grads.append(self.grid_final_gradients[gid])
-            m.comms.append("Dihedral %s Energy %.9f" % (str(gid), self.grid_energies[gid]))
+            # cast to avoid np v2 test failures merely on "Dihedral (np.int64(15),) Energy ..." vs "Dihedral (15,) Energy ..."
+            printed_gid = tuple(int(x) for x in gid)
+            m.comms.append("Dihedral %s Energy %.9f" % (str(printed_gid), self.grid_energies[gid]))
         m.write('qdata.txt')
         print(f"Final scan energies{' and gradients' if writing_gradients else ''} are written to qdata.txt")
         m.write('scan.xyz')

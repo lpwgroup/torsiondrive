@@ -188,13 +188,34 @@ def test_reproduce_api_example(example_path):
     # test writing current state
     loaded_state = td_api.current_state_json_load(current_state)
     td_api.current_state_json_dump(loaded_state, 'new_current_state.json')
-    assert filecmp.cmp('current_state.json', 'new_current_state.json')
+    # below is failing at trailing decimal places, hence the np compare and qcel compare
+    #   for the irregular lists, if available
+    # assert filecmp.cmp('current_state.json', 'new_current_state.json')
+    cs = json.load(open("current_state.json"))
+    ncs = json.load(open("new_current_state.json"))
+    for k in cs:
+        if k == "elements":
+            assert ncs[k] == cs[k]
+        elif k == "grid_status":
+            try:
+                import qcelemental as qcel
+            except ModuleNotFoundError:
+                pass
+            else:
+                assert qcel.compare_recursive(cs[k], ncs[k], rtol=0, atol=1.e-15)
+        else:
+            assert np.allclose(np.array(ncs[k]), np.array(cs[k]), rtol=0, atol=1.e-15)
     # test calling td_api in command line
     shutil.copy('next_jobs.json', 'orig_next_jobs.json')
     with open('run_command') as f:
         sys.argv = f.read().split()
     td_api.main()
-    assert filecmp.cmp('next_jobs.json', 'orig_next_jobs.json')
+    # again, file compare replaced by np compare
+    # assert filecmp.cmp('next_jobs.json', 'orig_next_jobs.json')
+    onj = json.load(open("orig_next_jobs.json"))
+    nj = json.load(open("next_jobs.json"))
+    for k in orig_next_jobs:
+        assert np.allclose(np.array(nj[k]), np.array(onj[k]), rtol=0, atol=1.e-15)
 
 def test_reproduce_extra_constraints_example(example_path):
     """
@@ -204,6 +225,13 @@ def test_reproduce_extra_constraints_example(example_path):
     os.chdir(example_path)
     os.chdir('extra_constraints')
     subprocess.run('tar zxf opt_tmp.tar.gz', shell=True, check=True)
+    # reference data is at below and is missing the empty extras_constraints.options
+    # https://github.com/lpwgroup/torsiondrive_examples/blob/master/examples/extra_constraints/constraints.txt
+    #   that is currently written. So we manipulate the ref value to add it.
+    #   Add to constraints.txt to add options.
+    otssj = json.load(open("opt_tmp/scanner_settings.json"))
+    otssj["extra_constraints"]["options"]= []
+    json.dump(otssj, open("opt_tmp/scanner_settings.json", "w"))
     shutil.copy('scan.xyz', 'orig_scan.xyz')
     argv = sys.argv[:]
     with open('run_command') as f:

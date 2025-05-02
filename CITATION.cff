@@ -1,0 +1,57 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: TorsionDrive
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Lee-Ping
+    family-names: Wang
+    affiliation: University of California Davis
+    orcid: 'https://orcid.org/0000-0003-3072-9946'
+  - given-names: Yudong
+    family-names: Qiu
+    orcid: 'https://orcid.org/0000-0003-4345-8356'
+repository-code: 'https://github.com/lpwgroup/torsiondrive'
+abstract: Dihedral scanner with wavefront propagation.
+keywords:
+  - quantum chemistry
+  - molecular geometry optimization
+  - high-throughput computational chemistry
+  - molecular force-field fitting
+license: MIT
+commit: 82bc2b8
+version: 1.1.0
+date-released: '2021-09-11'
+preferred-citation:
+  type: article
+  authors:
+  - family-names: "Yudong"
+    given-names: "Qiu"
+    orcid: "https://orcid.org/0000-0003-4345-8356"
+  - family-names: "Smith"
+    given-names: "Daniel G. A."
+    orcid: "https://orcid.org/0000-0001-8626-0900"
+  - family-names: "Stern"
+    given-names: "Chaya D."
+    orcid: "https://orcid.org/0000-0001-6200-3993"
+  - family-names: "Feng"
+    given-names: "Mudong"
+    orcid: "https://orcid.org/0000-0003-1686-0454"
+  - family-names: "Jang"
+    given-names: "Hyesu"
+    orcid: "https://orcid.org/0000-0002-1697-2918"
+  - family-names: "Wang"
+    given-names: "Lee-Ping"
+    orcid: "https://orcid.org/0000-0003-3072-9946"
+  doi: "10.1063/5.0009232"
+  journal: "The Journal of Chemical Physics"
+  month: 6
+  start: 244116
+  title: "Driving torsion scans with wavefront propagation"
+  issue: 24
+  volume: 152
+  year: 2020

@@ -4,7 +4,10 @@ import os
 import sys
 import time
 
-import work_queue
+try:
+    from ndcctools import work_queue
+except ModuleNotFoundError:
+    import work_queue
 
 
 class WorkQueue:
