@@ -16,7 +16,7 @@
 -->
 
 
-## v1.2.0 / 2025-MM-DD (Unreleased)
+## v1.2.0 / 2025-05-03
 
 #### New Features
  * [\#74](https://github.com/lpwgroup/torsiondrive/pull/74) Allow TorsionDrive to use xTB's native

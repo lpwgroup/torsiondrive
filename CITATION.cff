@@ -23,9 +23,8 @@ keywords:
   - high-throughput computational chemistry
   - molecular force-field fitting
 license: MIT
-commit: 82bc2b8
-version: 1.1.0
-date-released: '2021-09-11'
+version: 1.2.0
+date-released: '2025-05-03'
 preferred-citation:
   type: article
   authors:
